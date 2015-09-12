@@ -8,10 +8,10 @@ namespace Tre_navigator
   {
     m_stream.open(filename, std::ios_base::binary);
 
-    read_header_();
-    read_resource_block_();
-    read_names_block_();
-    build_lookup_table_();
+    _read_header();
+    _read_resource_block();
+    _read_names_block();
+    _build_lookup_table();
   }
 
   bool Tre_reader::is_resource_present(const std::string & res_name)
@@ -28,7 +28,7 @@ namespace Tre_navigator
     return std::move(name);
   }
 
-  bool Tre_reader::get_resource(uint32_t index, std::vector<char>& buffer)
+  bool Tre_reader::get_resource(uint32_t index, std::vector<uint8_t>& buffer)
   {
     if (index >= m_resources.size())
       return false;
@@ -40,7 +40,7 @@ namespace Tre_navigator
       if (buffer.size() < res_info.data_size)
         buffer.resize(res_info.data_size);
 
-      read_block_(res_info.data_offset,
+      _read_block(res_info.data_offset,
                   res_info.data_compression,
                   res_info.data_compressed_size,
                   res_info.data_size,
@@ -49,16 +49,16 @@ namespace Tre_navigator
     return true;
   }
 
-  bool Tre_reader::get_resource(const std::string & res_name, std::vector<char>& buffer)
+  bool Tre_reader::get_resource(const std::string & res_name, std::vector<uint8_t>& buffer)
   {
-    auto index = get_resourece_index_(res_name);
+    auto index = _get_resourece_index(res_name);
     if (index == size_t(-1))
       return false;
 
     return get_resource(static_cast<uint32_t>(index), buffer);
   }
 
-  void Tre_reader::read_header_()
+  void Tre_reader::_read_header()
   {
     m_stream.read(reinterpret_cast<char *>(&m_header), sizeof(m_header));
 
@@ -69,33 +69,33 @@ namespace Tre_navigator
       throw new std::runtime_error("Invalid TRE file format");
   }
 
-  void Tre_reader::read_resource_block_()
+  void Tre_reader::_read_resource_block()
   {
     m_resources.resize(m_header.resource_count);
     uint32_t uncomp_size = m_header.resource_count * sizeof(Resource_info);
 
-    read_block_(m_header.info_offset,
+    _read_block(m_header.info_offset,
                 m_header.info_compression,
                 m_header.info_compressed_size,
                 uncomp_size,
-                reinterpret_cast<char *>(m_resources.data()));
+                reinterpret_cast<uint8_t *>(m_resources.data()));
   }
 
-  void Tre_reader::read_names_block_()
+  void Tre_reader::_read_names_block()
   {
     m_names.resize(m_header.name_uncompressed_size);
 
     auto name_offset = m_header.info_offset + m_header.info_compressed_size;
 
-    read_block_(
+    _read_block(
       name_offset,
       m_header.name_compression,
       m_header.name_compressed_size,
       m_header.name_uncompressed_size,
-      m_names.data());
+      reinterpret_cast<uint8_t *>(m_names.data()));
   }
 
-  void Tre_reader::build_lookup_table_()
+  void Tre_reader::_build_lookup_table()
   {
     for (size_t index = 0; index < m_resources.size(); ++index)
     {
@@ -104,7 +104,7 @@ namespace Tre_navigator
     }
   }
 
-  size_t Tre_reader::get_resourece_index_(const std::string & name)
+  size_t Tre_reader::_get_resourece_index(const std::string & name)
   {
     auto result = m_lookup.find(name);
     if (result == m_lookup.end())
@@ -113,7 +113,7 @@ namespace Tre_navigator
     return result->second;
   }
 
-  void Tre_reader::read_block_(uint32_t offset, uint32_t compression, uint32_t comp_size, uint32_t uncomp_size, char * buffer)
+  void Tre_reader::_read_block(uint32_t offset, uint32_t compression, uint32_t comp_size, uint32_t uncomp_size, uint8_t * buffer)
   {
     if (buffer == nullptr)
       return;
@@ -121,7 +121,7 @@ namespace Tre_navigator
     if (compression == 0)
     {
       m_stream.seekg(offset, std::ios_base::beg);
-      m_stream.read(buffer, uncomp_size);
+      m_stream.read(reinterpret_cast<char *>(buffer), uncomp_size);
     }
     else if (compression == 2)
     {

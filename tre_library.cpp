@@ -84,7 +84,7 @@ namespace Tre_navigator
     return result;
   }
 
-  bool Tre_library::get_object(const std::string & name, std::vector<char>& buffer, size_t version_num)
+  bool Tre_library::get_object(const std::string & name, std::vector<uint8_t>& buffer, size_t version_num)
   {
     std::string fullname;
     if (!is_object_present(name))

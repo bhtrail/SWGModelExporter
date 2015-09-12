@@ -22,7 +22,7 @@ namespace Tre_navigator
 
     size_t number_of_object_versions(const std::string& name);
     std::vector<std::weak_ptr<Tre_reader>> get_versioned_readers(const std::string& name);
-    bool get_object(const std::string& name, std::vector<char> &buffer, size_t version_num = 0);
+    bool get_object(const std::string& name, std::vector<uint8_t> &buffer, size_t version_num = 0);
   private:
     std::vector<std::shared_ptr<Tre_reader>> m_readers;
     std::unordered_multimap<std::string, std::weak_ptr<Tre_reader>> m_reader_lookup;

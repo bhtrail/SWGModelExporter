@@ -9,12 +9,13 @@
 
 #include <stdio.h>
 #include <tchar.h>
-
+#include <assert.h>
 
 
 // TODO: reference additional headers your program requires here
 
 // STL
+#include <cctype>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -27,6 +28,8 @@
 #include <exception>
 #include <functional>
 #include <regex>
+#include <stack>
+#include <locale>
 
 // ZLIB
 #include <zconf.h>

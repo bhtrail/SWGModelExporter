@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "tre_reader.h"
 #include "tre_library.h"
+#include "IFF_file.h"
 
 using namespace std;
 namespace fs = std::experimental::filesystem;
@@ -47,7 +48,12 @@ int _tmain(int argc, _TCHAR* argv[])
   string full_name;
   if (library.get_object_name("acklay.sat", full_name))
   {
-    library.is_object_present(full_name);
+    std::vector<uint8_t> buffer;
+    library.get_object(full_name, buffer);
+
+    IFF_file iff_file(buffer);
+
+    iff_file.full_process(nullptr);
   }
   return 0;
 }

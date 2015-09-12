@@ -13,17 +13,17 @@ namespace Tre_navigator
     uint32_t get_resource_count() { return m_header.resource_count; }
     bool is_resource_present(const std::string & res_name);
     std::string get_resource_name(uint32_t index);
-    bool get_resource(uint32_t index, std::vector<char>& buffer);
-    bool get_resource(const std::string & res_name, std::vector<char>& buffer);
+    bool get_resource(uint32_t index, std::vector<uint8_t>& buffer);
+    bool get_resource(const std::string & res_name, std::vector<uint8_t>& buffer);
   private:
-    void read_header_();
-    void read_resource_block_();
-    void read_names_block_();
+    void _read_header();
+    void _read_resource_block();
+    void _read_names_block();
 
-    void build_lookup_table_();
-    size_t get_resourece_index_(const std::string& name);
+    void _build_lookup_table();
+    size_t _get_resourece_index(const std::string& name);
 
-    void read_block_(uint32_t offset, uint32_t compression, uint32_t comp_size, uint32_t uncomp_size, char *buffer);
+    void _read_block(uint32_t offset, uint32_t compression, uint32_t comp_size, uint32_t uncomp_size, uint8_t *buffer);
 
     std::ifstream m_stream;                      // source stream
     std::wstring m_filename;                     // namefile;
