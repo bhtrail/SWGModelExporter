@@ -6,6 +6,13 @@
 #include "tre_library.h"
 #include "IFF_file.h"
 
+//////
+#include "objects/animated_object.h"
+#include "parsers/cat_parser.h"
+
+//////
+#include "objects/static_object.h"
+
 using namespace std;
 namespace fs = std::experimental::filesystem;
 
@@ -53,7 +60,11 @@ int _tmain(int argc, _TCHAR* argv[])
 
     IFF_file iff_file(buffer);
 
-    iff_file.full_process(nullptr);
+    shared_ptr<cat_parser> parser = make_shared<cat_parser>();
+    iff_file.full_process(parser);
+    if (parser->is_result_correct())
+      auto object = parser->get_result_descriptor();
+
   }
   return 0;
 }

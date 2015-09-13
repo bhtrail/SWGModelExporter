@@ -59,6 +59,8 @@ std::string base_buffer::read_stringz()
   auto st_beg = m_data.begin() + m_position;
   auto st_end = m_data.begin() + this_position;
 
+  // set position to next to position of trailing zero
+  set_position(this_position + 1);
   return std::string(st_beg, st_end);
 }
 

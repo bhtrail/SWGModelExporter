@@ -16,6 +16,9 @@
     <Filter Include="Source Files\parsers">
       <UniqueIdentifier>{9b9bce23-6374-473e-b5c9-0b098663a4e6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\objects">
+      <UniqueIdentifier>{b0968ef4-1374-4463-9350-6dfde7470208}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -42,6 +45,18 @@
     <ClInclude Include="base_buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="objects\animated_object.h">
+      <Filter>Source Files\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="parsers\cat_parser.h">
+      <Filter>Source Files\parsers</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\static_object.h">
+      <Filter>Source Files\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="objects\geometry_common.h">
+      <Filter>Source Files\objects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -61,6 +76,9 @@
     </ClCompile>
     <ClCompile Include="base_buffer.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="parsers\cat_parser.cpp">
+      <Filter>Source Files\parsers</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

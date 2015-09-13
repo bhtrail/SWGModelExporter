@@ -30,6 +30,8 @@
 #include <regex>
 #include <stack>
 #include <locale>
+#include <bitset>
+#include <array>
 
 // ZLIB
 #include <zconf.h>
