@@ -1,12 +1,17 @@
 #pragma once
 
 #include "base_buffer.h"
+#include "objects\base_object.h"
 
 class IFF_visitor
 {
 public:
-  virtual void section_begin(const std::string& name, uint8_t * data_ptr, size_t data_size) = 0;
+  virtual ~IFF_visitor() { }
+  virtual void section_begin(const std::string& name, uint8_t * data_ptr, size_t data_size, uint32_t depth) = 0;
   virtual void parse_data(const std::string& name, uint8_t * data_ptr, size_t data_size) = 0;
+
+  virtual bool is_object_parsed() const { return false; }
+  virtual std::shared_ptr<Base_object> get_parsed_object() const { return nullptr; }
 };
 
 class IFF_file

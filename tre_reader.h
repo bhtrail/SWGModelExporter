@@ -7,9 +7,9 @@ namespace Tre_navigator
   class Tre_reader
   {
   public:
-    Tre_reader(const std::wstring &filename);
+    Tre_reader(const std::string &filename);
 
-    const std::wstring& get_archive_name() { return m_filename; }
+    const std::string& get_archive_name() { return m_filename; }
     uint32_t get_resource_count() { return m_header.resource_count; }
     bool is_resource_present(const std::string & res_name);
     std::string get_resource_name(uint32_t index);
@@ -26,7 +26,7 @@ namespace Tre_navigator
     void _read_block(uint32_t offset, uint32_t compression, uint32_t comp_size, uint32_t uncomp_size, uint8_t *buffer);
 
     std::ifstream m_stream;                      // source stream
-    std::wstring m_filename;                     // namefile;
+    std::string m_filename;                     // namefile;
     Header m_header;                             // header of file
     std::vector<Resource_info> m_resources;      // resource info block
     std::vector<char> m_names;                   // names block

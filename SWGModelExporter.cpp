@@ -5,18 +5,14 @@
 #include "tre_reader.h"
 #include "tre_library.h"
 #include "IFF_file.h"
-
-//////
-#include "objects/animated_object.h"
-#include "parsers/cat_parser.h"
+#include "parsers/parser_selector.h"
 
 //////
 #include "objects/static_object.h"
 
 using namespace std;
 namespace fs = std::experimental::filesystem;
-
-void show_usage_guide();
+namespace po = boost::program_options;
 
 class File_read_callback : public Tre_navigator::Tre_library_reader_callback
 {
@@ -40,39 +36,53 @@ private:
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-  if (argc < 3)
+  std::string swg_path;
+  std::string object_name;
+  std::string output_name;
+
+  po::options_description flags("Program options");
+  flags.add_options()
+    ("help", "get this help message")
+    ("swg-path", po::value<std::string>(&swg_path)->required(), "path to Star Wars Galaxies")
+    ("object", po::value<std::string>(&object_name)->required(), "name of object to extract")
+    ("output-path", po::value<std::string>(&output_name)->required(), "path to output location");
+
+  try
   {
-    show_usage_guide();
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, flags), vm);
+    po::notify(vm);
+  }
+  catch (...)
+  {
+    std::cout << flags << std::endl;
     return -1;
   }
 
-  fs::path output_path(argv[3]);
-
-  std::wstring object_name(argv[2]);
+  fs::path output_path(output_name);
 
   File_read_callback read_callback;
-  Tre_navigator::Tre_library library(argv[1], &read_callback);
+  std::cout << "Loaading TRE library..." << std::endl;
+
+  Tre_navigator::Tre_library library(swg_path, &read_callback);
   string full_name;
-  if (library.get_object_name("acklay.sat", full_name))
+  std::cout << "Looking for object" << std::endl;
+  if (library.get_object_name(object_name, full_name))
   {
     std::vector<uint8_t> buffer;
     library.get_object(full_name, buffer);
 
     IFF_file iff_file(buffer);
 
-    shared_ptr<cat_parser> parser = make_shared<cat_parser>();
+    shared_ptr<Parser_selector> parser = make_shared<Parser_selector>();
     iff_file.full_process(parser);
-    if (parser->is_result_correct())
-      auto object = parser->get_result_descriptor();
-
+    if (parser->is_object_parsed())
+      auto object = parser->get_parsed_object();
+    else
+      std::cout << "Objects of this type could not be converted at this time. Sorry!" << std::endl;
   }
-  return 0;
-}
+  else
+    std::cout << "Object with name \"" << object_name << "\" has not been found" << std::endl;
 
-void show_usage_guide()
-{
-  cout << "Should have exactly 3 parameters in command line" << endl;
-  cout << "\t<path to SWG directory> - path to location of TRE files" << endl;
-  cout << "\t<name of object to export> - name of object to export" << endl;
-  cout << "\t<path to directory to store data> - path to location to store exported data" << endl;
+  return 0;
 }

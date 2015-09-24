@@ -3,7 +3,7 @@
 
 namespace Tre_navigator
 {
-  Tre_reader::Tre_reader(const std::wstring & filename)
+  Tre_reader::Tre_reader(const std::string & filename)
     : m_filename(filename)
   {
     m_stream.open(filename, std::ios_base::binary);

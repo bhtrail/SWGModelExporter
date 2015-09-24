@@ -1,8 +1,7 @@
 #pragma once
 
 #include "..\IFF_file.h"
-
-class Animated_object_descriptor;
+#include "objects\animated_object.h"
 
 class cat_parser : public IFF_visitor
 {
@@ -10,11 +9,11 @@ public:
   cat_parser()
     : m_meshes_count(0), m_skeletons_count(0), m_latx_present(false)
   { }
-  virtual void section_begin(const std::string& name, uint8_t * data_ptr, size_t data_size) override;
+  virtual void section_begin(const std::string& name, uint8_t * data_ptr, size_t data_size, uint32_t depth) override;
   virtual void parse_data(const std::string& name, uint8_t * data_ptr, size_t data_size) override;
 
-  bool is_result_correct();
-  std::shared_ptr<Animated_object_descriptor> get_result_descriptor() { return m_object; }
+  virtual bool is_object_parsed() const override;
+  std::shared_ptr<Base_object> get_parsed_object() const { return std::dynamic_pointer_cast<Base_object>(m_object); }
 
   void reset();
 private:

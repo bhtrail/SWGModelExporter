@@ -15,7 +15,7 @@ namespace Tre_navigator
   {
   public:
     Tre_library() = delete;
-    Tre_library(const std::wstring& path, Tre_library_reader_callback * callback_ptr = nullptr);
+    Tre_library(const std::string& path, Tre_library_reader_callback * callback_ptr = nullptr);
 
     bool is_object_present(const std::string& name);
     bool get_object_name(const std::string& partial_name, std::string& full_name);

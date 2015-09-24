@@ -39,3 +39,4 @@
 
 // boost
 #include <boost/progress.hpp>
+#include <boost/program_options.hpp>

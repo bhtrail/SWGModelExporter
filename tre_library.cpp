@@ -5,15 +5,15 @@ namespace Tre_navigator
 {
   namespace fs = std::experimental::filesystem;
 
-  Tre_library::Tre_library(const std::wstring & path, Tre_library_reader_callback * callback_ptr)
+  Tre_library::Tre_library(const std::string & path, Tre_library_reader_callback * callback_ptr)
   {
     fs::directory_iterator file_enum(path);
-    std::vector<std::wstring> files;
+    std::vector<std::string> files;
 
     for (auto& file_item : file_enum)
     {
       if (fs::is_regular_file(file_item) && file_item.path().extension() == ".tre")
-        files.push_back(file_item.path().wstring());
+        files.push_back(file_item.path().string());
     }
 
     std::sort(files.begin(), files.end());

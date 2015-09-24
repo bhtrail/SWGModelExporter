@@ -37,7 +37,8 @@ void IFF_file::full_process(std::shared_ptr<IFF_visitor> visitor)
       {
         positions.push(m_buffer.get_position() + size);
         if (visitor)
-          visitor->section_begin(name, m_buffer.raw().data() + m_buffer.get_position(), size);
+          visitor->section_begin(name, m_buffer.raw().data() + m_buffer.get_position(), size, depth);
+        depth++;
       }
       else
       {

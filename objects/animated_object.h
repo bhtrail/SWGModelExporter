@@ -1,9 +1,10 @@
 #pragma once
 
+#include "objects\base_object.h"
 //
 // Animated object descriptor, builded from SAT files
 //
-class Animated_object_descriptor
+class Animated_object_descriptor : public Base_object
 {
 public:
   Animated_object_descriptor()
@@ -33,6 +34,9 @@ public:
   {
     m_animations_map[skt_name] = anim_map;
   }
+
+  virtual bool is_object_correct() const override { return true; }
+  virtual void store(const std::string& path) override { }
 
 private:
   std::vector<std::string> m_mesh_names;

@@ -10,7 +10,7 @@ void cat_parser::reset()
   m_skeletons_count = 0;
   m_latx_present = false;
 }
-void cat_parser::section_begin(const std::string & name, uint8_t * data_ptr, size_t data_size)
+void cat_parser::section_begin(const std::string & name, uint8_t * data_ptr, size_t data_size, uint32_t depth)
 {
   if (name == "SMATFORM")
   {
@@ -70,7 +70,7 @@ void cat_parser::parse_data(const std::string & name, uint8_t * data_ptr, size_t
   }
 }
 
-bool cat_parser::is_result_correct()
+bool cat_parser::is_object_parsed() const
 {
   return m_section_received[smat]
     && m_section_received[info]

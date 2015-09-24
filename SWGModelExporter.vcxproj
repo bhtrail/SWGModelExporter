@@ -159,9 +159,11 @@
     <ClInclude Include="base_buffer.h" />
     <ClInclude Include="IFF_file.h" />
     <ClInclude Include="objects\animated_object.h" />
+    <ClInclude Include="objects\base_object.h" />
     <ClInclude Include="objects\geometry_common.h" />
     <ClInclude Include="objects\static_object.h" />
     <ClInclude Include="parsers\cat_parser.h" />
+    <ClInclude Include="parsers\parser_selector.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="tre_library.h" />
@@ -172,6 +174,7 @@
     <ClCompile Include="base_buffer.cpp" />
     <ClCompile Include="IFF_file.cpp" />
     <ClCompile Include="parsers\cat_parser.cpp" />
+    <ClCompile Include="parsers\parser_selector.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
