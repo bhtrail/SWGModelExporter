@@ -32,6 +32,7 @@
 #include <locale>
 #include <bitset>
 #include <array>
+#include <queue>
 
 // ZLIB
 #include <zconf.h>
@@ -40,3 +41,4 @@
 // boost
 #include <boost/progress.hpp>
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>

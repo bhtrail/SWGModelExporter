@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "cat_parser.h"
-#include "objects\animated_object.h"
+#include "objects/animated_object.h"
 
 void cat_parser::reset()
 {

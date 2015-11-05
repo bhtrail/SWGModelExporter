@@ -22,6 +22,7 @@
     <ProjectGuid>{302EF9DD-828A-4143-9583-80399281CAE5}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>SWGModelExporter</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -104,6 +105,8 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>D:\Libs\boost;D:\Libs\zlib\include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -142,6 +145,8 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>D:\Libs\boost;D:\Libs\zlib\include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -163,6 +168,8 @@
     <ClInclude Include="objects\geometry_common.h" />
     <ClInclude Include="objects\static_object.h" />
     <ClInclude Include="parsers\cat_parser.h" />
+    <ClInclude Include="parsers\lmg_parser.h" />
+    <ClInclude Include="parsers\mgn_parser.h" />
     <ClInclude Include="parsers\parser_selector.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -173,7 +180,10 @@
   <ItemGroup>
     <ClCompile Include="base_buffer.cpp" />
     <ClCompile Include="IFF_file.cpp" />
+    <ClCompile Include="objects\animated_object.cpp" />
     <ClCompile Include="parsers\cat_parser.cpp" />
+    <ClCompile Include="parsers\lmg_parser.cpp" />
+    <ClCompile Include="parsers\mgn_parser.cpp" />
     <ClCompile Include="parsers\parser_selector.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IFF_file.h"
-#include "objects\base_object.h"
+#include "objects/base_object.h"
 
 class Parser_selector : public IFF_visitor
 {

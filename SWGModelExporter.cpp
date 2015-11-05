@@ -11,10 +11,12 @@
 #include "objects/static_object.h"
 
 using namespace std;
-namespace fs = std::experimental::filesystem;
+namespace fs = boost::filesystem;
 namespace po = boost::program_options;
 
-class File_read_callback : public Tre_navigator::Tre_library_reader_callback
+using namespace Tre_navigator;
+
+class File_read_callback : public Tre_library_reader_callback
 {
 public:
   File_read_callback()
@@ -22,7 +24,7 @@ public:
   virtual void number_of_files(size_t file_num) override
   {
     if (m_display == nullptr)
-      m_display = std::make_shared<boost::progress_display>(static_cast<unsigned long>(file_num));
+      m_display = make_shared<boost::progress_display>(static_cast<unsigned long>(file_num));
   }
   virtual void file_read() override
   {
@@ -38,14 +40,14 @@ int _tmain(int argc, _TCHAR* argv[])
 {
   std::string swg_path;
   std::string object_name;
-  std::string output_name;
+  std::string output_pathname;
 
   po::options_description flags("Program options");
   flags.add_options()
     ("help", "get this help message")
-    ("swg-path", po::value<std::string>(&swg_path)->required(), "path to Star Wars Galaxies")
-    ("object", po::value<std::string>(&object_name)->required(), "name of object to extract")
-    ("output-path", po::value<std::string>(&output_name)->required(), "path to output location");
+    ("swg-path", po::value<string>(&swg_path)->required(), "path to Star Wars Galaxies")
+    ("object", po::value<string>(&object_name)->required(), "name of object to extract")
+    ("output-path", po::value<string>(&output_pathname)->required(), "path to output location");
 
   try
   {
@@ -59,30 +61,49 @@ int _tmain(int argc, _TCHAR* argv[])
     return -1;
   }
 
-  fs::path output_path(output_name);
+  fs::path output_path(output_pathname);
 
   File_read_callback read_callback;
   std::cout << "Loaading TRE library..." << std::endl;
 
-  Tre_navigator::Tre_library library(swg_path, &read_callback);
+  auto library = make_shared<Tre_library>(swg_path, &read_callback);
   string full_name;
-  std::cout << "Looking for object" << std::endl;
-  if (library.get_object_name(object_name, full_name))
+  cout << "Looking for object" << endl;
+
+  queue<string> objects_to_process;
+
+  if (library->get_object_name(object_name, full_name))
   {
+    objects_to_process.push(full_name);
+  }
+  else
+    std::cout << "Object with name \"" << object_name << "\" has not been found" << std::endl;
+
+  while (objects_to_process.empty() == false)
+  {
+    full_name = objects_to_process.front();
+    objects_to_process.pop();
+
     std::vector<uint8_t> buffer;
-    library.get_object(full_name, buffer);
+    library->get_object(full_name, buffer);
 
     IFF_file iff_file(buffer);
 
     shared_ptr<Parser_selector> parser = make_shared<Parser_selector>();
     iff_file.full_process(parser);
     if (parser->is_object_parsed())
+    {
       auto object = parser->get_parsed_object();
+      object->store(output_pathname);
+
+      auto references_objects = object->get_referenced_objects();
+      if (!references_objects.empty())
+        for(const auto& object_name : references_objects)
+          objects_to_process.push(object_name);
+    }
     else
       std::cout << "Objects of this type could not be converted at this time. Sorry!" << std::endl;
-  }
-  else
-    std::cout << "Object with name \"" << object_name << "\" has not been found" << std::endl;
+  } 
 
   return 0;
 }

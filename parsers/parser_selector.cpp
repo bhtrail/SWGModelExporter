@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "parser_selector.h"
 #include "cat_parser.h"
+#include "lmg_parser.h"
+#include "mgn_parser.h"
 
 
 Parser_selector::Parser_selector()
@@ -13,6 +15,12 @@ void Parser_selector::section_begin(const std::string& name, uint8_t * data_ptr,
     // at depth 0 we have base FORM object
     if (name == "SMATFORM")
       m_selected_parser = std::make_shared<cat_parser>();
+    else if (name == "MLODFORM")
+      m_selected_parser = std::make_shared<lmg_parser>();
+    else if (name == "SKMGFORM")
+      m_selected_parser = std::make_shared<mgn_parser>();
+    else
+      m_selected_parser = nullptr;
   }
 
   if (m_selected_parser)

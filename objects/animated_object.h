@@ -1,6 +1,6 @@
 #pragma once
 
-#include "objects\base_object.h"
+#include "objects/base_object.h"
 //
 // Animated object descriptor, builded from SAT files
 //
@@ -36,10 +36,25 @@ public:
   }
 
   virtual bool is_object_correct() const override { return true; }
-  virtual void store(const std::string& path) override { }
+  virtual void store(const std::string& path) override { };
+  virtual std::set<std::string> get_referenced_objects() const override;
 
 private:
   std::vector<std::string> m_mesh_names;
   std::vector<std::pair<std::string, std::string>> m_skeleton_info;
   std::unordered_map<std::string, std::string> m_animations_map;
+};
+
+class Animated_lod_list : public Base_object
+{
+public:
+  Animated_lod_list() { }
+
+  void add_lod_name(const std::string& name) { m_lod_names.emplace_back(name); }
+  // overrides
+  virtual bool is_object_correct() const override { return true; }
+  virtual void store(const std::string& path) override { };
+  virtual std::set<std::string> get_referenced_objects() const override;
+private:
+  std::vector<std::string> m_lod_names;
 };

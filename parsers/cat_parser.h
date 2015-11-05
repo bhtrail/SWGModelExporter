@@ -1,7 +1,7 @@
 #pragma once
 
-#include "..\IFF_file.h"
-#include "objects\animated_object.h"
+#include "IFF_file.h"
+#include "objects/animated_object.h"
 
 class cat_parser : public IFF_visitor
 {
