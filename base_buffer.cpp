@@ -91,6 +91,16 @@ void base_buffer::read_buffer(std::vector<uint8_t>& buffer, size_t bytes_to_read
   m_position += bytes_to_read;
 }
 
+void base_buffer::read_buffer(uint8_t* buffer_ptr, size_t bytes_to_read)
+{
+  if ((m_position + bytes_to_read) > m_actual_data_size)
+    throw std::out_of_range("result outside of buffer size");
+
+  auto it_begin = m_data.begin() + m_position;
+  std::copy(it_begin, it_begin + bytes_to_read, buffer_ptr);
+  m_position += bytes_to_read;
+}
+
 void base_buffer::write_string(const std::string & str)
 {
   auto new_size = m_position + str.size() + sizeof(uint16_t);

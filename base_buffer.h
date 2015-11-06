@@ -24,6 +24,7 @@ public:
   std::wstring read_wstring();
 
   void read_buffer(std::vector<uint8_t>& buffer, size_t bytes_to_read);
+  void read_buffer(uint8_t *data_ptr, size_t bytes_to_read);
 
   // writers
   void write_uint8(uint8_t value) { _write<uint8_t>(value); }
