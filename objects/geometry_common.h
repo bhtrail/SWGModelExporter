@@ -44,4 +44,9 @@ namespace Graphics
     uint8_t g;
     uint8_t b;
   };
+
+  struct Triangle_indexed
+  {
+    uint32_t points[3];
+  };
 } // Geometry

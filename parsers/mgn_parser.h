@@ -6,13 +6,20 @@
 class mgn_parser : public IFF_visitor
 {
 public:
-  mgn_parser()
-    : m_num_skeletons(0), m_num_shaders(0), m_blend_targets(0), m_occluded_zones(0), m_occlusion_zones_combinations(0)
-    , m_occlusion_zones(0)
-  { }
+  mgn_parser() { }
   // Inherited via IFF_visitor
   virtual void section_begin(const std::string& name, uint8_t* data_ptr, size_t data_size, uint32_t depth) override;
   virtual void parse_data(const std::string& name, uint8_t* data_ptr, size_t data_size) override;
+
+private:
+  void read_normals_(base_buffer &buffer);
+  void read_vertex_weights_(base_buffer &buffer);
+  void read_weight_counters_(base_buffer &buffer);
+  void read_vertices_list_(base_buffer &buffer);
+  void read_joints_names_(base_buffer &buffer);
+  void read_skeletons_list_(base_buffer &buffer);
+  void read_mesh_info_(base_buffer &buffer);
+
 private:
   enum section_received
   {
@@ -36,13 +43,6 @@ private:
   };
 
   std::bitset<31> m_section_received;
-
-  uint32_t m_num_skeletons;
-  uint32_t m_num_shaders;
-  uint32_t m_blend_targets;
-  uint16_t m_occlusion_zones;
-  uint16_t m_occlusion_zones_combinations;
-  uint16_t m_occluded_zones;
-  int16_t m_occlusion_layer;
+  std::shared_ptr<Animated_mesh> m_object;
 };
 
