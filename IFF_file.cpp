@@ -25,6 +25,8 @@ void IFF_file::full_process(std::shared_ptr<IFF_visitor> visitor)
     {
       positions.pop();
       depth--;
+      if (visitor)
+        visitor->section_end(depth);
     }
     else
     {
@@ -58,7 +60,8 @@ std::string IFF_file::_get_iff_name()
   auto position = m_buffer.get_position();
   const char * name_buf_ptr = reinterpret_cast<const char *>(&name_buf);
 
-  auto length = std::count_if(name_buf_ptr, name_buf_ptr + 8, [&loc](const char ch) { return std::isalnum(ch, loc); });
+  auto length = std::count_if(name_buf_ptr, name_buf_ptr + 8,
+    [&loc](const char ch) { return std::isalnum(ch, loc) || std::isspace(ch, loc); });
 
   if (length < 4)
   {

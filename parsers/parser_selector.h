@@ -10,6 +10,7 @@ public:
 
   virtual void section_begin(const std::string& name, uint8_t * data_ptr, size_t data_size, uint32_t depth) override;
   virtual void parse_data(const std::string& name, uint8_t * data_ptr, size_t data_size) override;
+  virtual void section_end(uint32_t depth) override;
 
   virtual bool is_object_parsed() const override
   { 

@@ -32,3 +32,9 @@ void Parser_selector::parse_data(const std::string& name, uint8_t * data_ptr, si
   if (m_selected_parser)
     m_selected_parser->parse_data(name, data_ptr, data_size);
 }
+
+void Parser_selector::section_end(uint32_t depth)
+{
+  if (m_selected_parser)
+    m_selected_parser->section_end(depth);
+}

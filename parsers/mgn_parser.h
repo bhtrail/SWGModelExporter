@@ -6,10 +6,17 @@
 class mgn_parser : public IFF_visitor
 {
 public:
-  mgn_parser() { }
+  mgn_parser() : m_in_blts(false), m_in_psdt(false) { }
   // Inherited via IFF_visitor
   virtual void section_begin(const std::string& name, uint8_t* data_ptr, size_t data_size, uint32_t depth) override;
   virtual void parse_data(const std::string& name, uint8_t* data_ptr, size_t data_size) override;
+  virtual void section_end(uint32_t depth) override;
+
+  virtual bool is_object_parsed() const { return m_object->is_object_correct(); }
+  virtual std::shared_ptr<Base_object> get_parsed_object() const override
+  {
+    return std::dynamic_pointer_cast<Base_object>(m_object);
+  }
 
 private:
   void read_normals_(base_buffer &buffer);
@@ -19,7 +26,16 @@ private:
   void read_joints_names_(base_buffer &buffer);
   void read_skeletons_list_(base_buffer &buffer);
   void read_mesh_info_(base_buffer &buffer);
+  void read_shader_triangles_(const std::string & name, base_buffer &buffer);
+  void read_shader_texels_(base_buffer &buffer);
+  void read_shader_lighting_indexes_(base_buffer &buffer);
+  void read_shader_normals_indexes_(base_buffer &buffer);
+  void read_shader_vertex_indexes_(base_buffer &buffer);
+  void read_shader_name_(base_buffer &buffer);
+  void read_lighting_normals_(base_buffer &buffer);
 
+  void clear_psdt_flags_();
+  bool is_psdt_correct_();
 private:
   enum section_received
   {
@@ -44,5 +60,7 @@ private:
 
   std::bitset<31> m_section_received;
   std::shared_ptr<Animated_mesh> m_object;
+  bool m_in_blts;
+  bool m_in_psdt;
 };
 

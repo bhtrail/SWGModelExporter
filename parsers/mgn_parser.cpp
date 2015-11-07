@@ -10,6 +10,28 @@ void mgn_parser::section_begin(const string& name, uint8_t* data_ptr, size_t dat
     m_section_received[skmg] = true;
     m_object = make_shared<Animated_mesh>();
   }
+  else
+  {
+    string form_type(data_ptr, data_ptr + 4);
+    if (form_type == "BLTS")
+      m_in_blts = true;
+    else if (form_type == "PSDT")
+      m_in_psdt = true;
+
+    if (m_in_blts && m_in_psdt)
+      throw std::runtime_error("Invalid state of parser");
+  }
+}
+
+void mgn_parser::section_end(uint32_t depth)
+{
+  if (depth == 2)
+  {
+    if (m_in_blts)
+      m_in_blts = false;
+    if (m_in_psdt)
+      m_in_psdt = false;
+  }
 }
 
 void mgn_parser::parse_data(const string& name, uint8_t * data_ptr, size_t data_size)
@@ -28,7 +50,7 @@ void mgn_parser::parse_data(const string& name, uint8_t * data_ptr, size_t data_
   {
     read_joints_names_(buffer);
   }
-  else if (name == "POSN" && m_section_received[xfnm])
+  else if (name == "POSN" && m_section_received[xfnm] && !(m_in_blts || m_in_psdt))
   {
     read_vertices_list_(buffer);
   }
@@ -40,27 +62,155 @@ void mgn_parser::parse_data(const string& name, uint8_t * data_ptr, size_t data_
   {
     read_vertex_weights_(buffer);
   }
-  else if (name == "NORM" && m_section_received[twdt])
+  else if (name == "NORM" && m_section_received[twdt] && !(m_in_blts || m_in_psdt))
   {
     read_normals_(buffer);
   }
-  else if (name == "DOT3" && m_section_received[norm])
+  else if (name == "DOT3" && m_section_received[norm] && !(m_in_blts || m_in_psdt))
   {
-    const auto& mesh_info = m_object->get_info();
-    uint32_t light_readed = 0;
-    uint32_t lights_to_read = buffer.read_uint32();
-    while (!buffer.end_of_buffer() && light_readed < lights_to_read)
-    {
-      Geometry::Vector3 vec;
-      vec.x = buffer.read_float();
-      vec.y = buffer.read_float();
-      vec.z = buffer.read_float();
-
-      m_object->add_lightning_normal(vec);
-      light_readed++;
-    }
-    m_section_received[dot3] = buffer.end_of_buffer() && light_readed == lights_to_read;
+    read_lighting_normals_(buffer);
   }
+  else if (name == "PSDTNAME"
+    && (m_section_received[dot3] || m_section_received[norm] || m_section_received[psdt] || m_section_received[zto]))
+  {
+    read_shader_name_(buffer);
+  }
+  else if (name == "PIDX" && (m_section_received[psdt_name]))
+  {
+    read_shader_vertex_indexes_(buffer);
+  }
+  else if (name == "NIDX" && (m_section_received[psdt_pidx]))
+  {
+    read_shader_normals_indexes_(buffer);
+  }
+  else if (name == "DOT3" && (m_section_received[psdt_nidx]))
+  {
+    read_shader_lighting_indexes_(buffer);
+  }
+  else if (name == "TXCI" && (m_section_received[psdt_dot3] || m_section_received[psdt_nidx]))
+  {
+    // just read it
+    uint32_t coord_per_vetext = buffer.read_uint32();
+    uint32_t dimenstion_per_coord = buffer.read_uint32();
+    m_section_received[psdt_txci] = buffer.end_of_buffer();
+  }
+  else if (name == "TCSFTCSD" && m_section_received[psdt_txci])
+  {
+    read_shader_texels_(buffer);
+  }
+  else if (name == "PRIMINFO" && m_section_received[psdt_tcsf_tcsd])
+  {
+    uint32_t num_primitives = buffer.read_uint32();
+    m_section_received[psdt_prim_info] = buffer.end_of_buffer();
+  }
+  else if ((name == "ITL " || name == "OITL") && m_section_received[psdt_prim_info])
+  {
+    read_shader_triangles_(name, buffer);
+  }
+}
+
+void mgn_parser::read_shader_triangles_(const std::string & name, base_buffer &buffer)
+{
+  bool oitl = (name == "OITL");
+  auto& curr_shader = m_object->get_current_shader();
+  curr_shader.add_primitive();
+  uint32_t num_triangles = buffer.read_uint32();
+  uint32_t tri_readed = 0;
+  while (!buffer.end_of_buffer() && (tri_readed < num_triangles))
+  {
+    if (oitl)
+      uint16_t dummy = buffer.read_uint16();
+    uint32_t v1 = buffer.read_uint32();
+    uint32_t v2 = buffer.read_uint32();
+    uint32_t v3 = buffer.read_uint32();
+    curr_shader.get_triangles().emplace_back(Graphics::Triangle_indexed { v1, v2, v3 });
+    tri_readed++;
+  }
+  curr_shader.close_primitive();
+  bool section_ok = buffer.end_of_buffer() && tri_readed == num_triangles;
+  auto section_to_set = (oitl) ? psdt_prim_oitl : psdt_prim_itl;
+  m_section_received[section_to_set] = section_ok;
+  m_section_received[psdt] = is_psdt_correct_();
+}
+
+void mgn_parser::read_shader_texels_(base_buffer &buffer)
+{
+  auto& curr_shader = m_object->get_current_shader();
+  uint32_t num_vertices = static_cast<uint32_t>(curr_shader.get_pos_indexes().size());
+  uint32_t vertex_idx = 0;
+  while (!buffer.end_of_buffer() && vertex_idx < num_vertices)
+  {
+    float u = buffer.read_float();
+    float v = buffer.read_float();
+
+    curr_shader.get_texels().emplace_back(u, 1.0f - v);
+    vertex_idx++;
+  }
+  m_section_received[psdt_tcsf_tcsd] = buffer.end_of_buffer() && (vertex_idx == num_vertices);
+}
+
+void mgn_parser::read_shader_lighting_indexes_(base_buffer &buffer)
+{
+  auto& curr_shader = m_object->get_current_shader();
+  while (!buffer.end_of_buffer())
+  {
+    uint32_t light_idx = buffer.read_uint32();
+    curr_shader.get_light_indexes().emplace_back(light_idx);
+  }
+  m_section_received[psdt_dot3] = buffer.end_of_buffer();
+}
+
+void mgn_parser::read_shader_normals_indexes_(base_buffer &buffer)
+{
+  auto& curr_shader = m_object->get_current_shader();
+  while (!buffer.end_of_buffer())
+  {
+    uint32_t normal_index = buffer.read_uint32();
+    curr_shader.get_normal_indexes().emplace_back(normal_index);
+  }
+  m_section_received[psdt_nidx] = buffer.end_of_buffer();
+}
+
+void mgn_parser::read_shader_vertex_indexes_(base_buffer &buffer)
+{
+  auto& curr_shader = m_object->get_current_shader();
+  uint32_t num_vertices = buffer.read_uint32();
+  uint32_t vertices_read = 0;
+  while (!buffer.end_of_buffer() && vertices_read < num_vertices)
+  {
+    uint32_t vert_idx = buffer.read_uint32();
+    curr_shader.get_pos_indexes().emplace_back(vert_idx);
+    vertices_read++;
+  }
+  m_section_received[psdt_pidx] = buffer.end_of_buffer() && (vertices_read == num_vertices);
+}
+
+void mgn_parser::read_shader_name_(base_buffer &buffer)
+{
+  // begin of new PSDT section
+  string shader_name = buffer.read_stringz();
+  m_object->add_new_shader(shader_name);
+  clear_psdt_flags_();
+  m_section_received[psdt_name] = buffer.end_of_buffer();
+}
+
+void mgn_parser::read_lighting_normals_(base_buffer &buffer)
+{
+  const auto& mesh_info = m_object->get_info();
+  uint32_t light_readed = 0;
+  uint32_t lights_to_read = buffer.read_uint32();
+  while (!buffer.end_of_buffer() && light_readed < lights_to_read)
+  {
+    Geometry::Vector4 vec;
+    vec.x = buffer.read_float();
+    vec.y = buffer.read_float();
+    vec.z = buffer.read_float();
+    vec.a = buffer.read_float();
+
+    m_object->add_lighting_normal(vec);
+    light_readed++;
+  }
+  m_section_received[dot3] = buffer.end_of_buffer() && light_readed == lights_to_read;
 }
 
 void mgn_parser::read_normals_(base_buffer &buffer)
@@ -181,4 +331,23 @@ void mgn_parser::read_mesh_info_(base_buffer &buffer)
 
   m_object->set_info(mesh_info);
   m_section_received[info] = buffer.end_of_buffer();
+}
+
+void mgn_parser::clear_psdt_flags_()
+{
+  for (uint8_t flag = psdt; flag <= psdt_prim_oitl; flag++)
+    m_section_received[flag] = false;
+}
+
+bool mgn_parser::is_psdt_correct_()
+{
+  return m_section_received[psdt_name] &&
+    m_section_received[psdt_pidx] &&
+    m_section_received[psdt_nidx] &&
+    m_section_received[psdt_dot3] &&
+    m_section_received[psdt_txci] &&
+    m_section_received[psdt_tcsf_tcsd] &&
+    m_section_received[psdt_prim_info] &&
+    (m_section_received[psdt_prim_itl] || m_section_received[psdt_prim_oitl])
+    ;
 }

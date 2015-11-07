@@ -39,6 +39,7 @@ public:
   virtual bool is_object_correct() const override { return true; }
   virtual void store(const std::string& path) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void set_object_name(const std::string&) override { };
 
 private:
   std::vector<std::string> m_mesh_names;
@@ -56,6 +57,7 @@ public:
   virtual bool is_object_correct() const override { return true; }
   virtual void store(const std::string& path) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void set_object_name(const std::string&) override { };
 private:
   std::vector<std::string> m_lod_names;
 };
@@ -127,22 +129,25 @@ public:
   Vertex& get_vertex(const uint32_t pos_num) { return m_vertices[pos_num]; }
 
   void add_normal(const Geometry::Vector3& norm) { m_normals.emplace_back(norm); }
-  void add_lightning_normal(const Geometry::Vector3& light_norm) { m_lightning_normals.emplace_back(light_norm); }
+  void add_lighting_normal(const Geometry::Vector4& light_norm) { m_lighting_normals.emplace_back(light_norm); }
   void add_skeleton_name(const std::string& name) { m_skeletons_names.emplace_back(name); }
   void add_joint_name(const std::string& name) { m_joint_names.emplace_back(name); }
   void add_new_shader(const std::string& name) { m_shaders.emplace_back(name); }
   Shader& get_current_shader() { return m_shaders.back(); }
+
   // Inherited via Base_object
   virtual bool is_object_correct() const override;
   virtual void store(const std::string & path) override;
   virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void set_object_name(const std::string& obj_name) override { m_object_name = obj_name; }
 
 private:
+  std::string m_object_name;
   Info m_mesh_info;
   std::vector<std::string> m_skeletons_names;
   std::vector<std::string> m_joint_names;
   std::vector<Vertex> m_vertices;
   std::vector<Geometry::Vector3> m_normals;
-  std::vector<Geometry::Vector3> m_lightning_normals;
+  std::vector<Geometry::Vector4> m_lighting_normals;
   std::vector<Shader> m_shaders;
 };

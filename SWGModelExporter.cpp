@@ -72,7 +72,11 @@ int _tmain(int argc, _TCHAR* argv[])
 
   queue<string> objects_to_process;
 
-  if (library->get_object_name(object_name, full_name))
+  if (library->is_object_present(object_name))
+  {
+    objects_to_process.push(object_name);
+  }
+  else if (library->get_object_name(object_name, full_name))
   {
     objects_to_process.push(full_name);
   }
@@ -85,7 +89,8 @@ int _tmain(int argc, _TCHAR* argv[])
     objects_to_process.pop();
 
     std::vector<uint8_t> buffer;
-    library->get_object(full_name, buffer);
+    if (!library->get_object(full_name, buffer))
+      continue;
 
     IFF_file iff_file(buffer);
 
@@ -94,6 +99,7 @@ int _tmain(int argc, _TCHAR* argv[])
     if (parser->is_object_parsed())
     {
       auto object = parser->get_parsed_object();
+      object->set_object_name(full_name);
       object->store(output_pathname);
 
       auto references_objects = object->get_referenced_objects();
