@@ -71,6 +71,7 @@ int _tmain(int argc, _TCHAR* argv[])
   cout << "Looking for object" << endl;
 
   queue<string> objects_to_process;
+  set<string> unknown_objects;
 
   if (library->is_object_present(object_name))
   {
@@ -83,6 +84,7 @@ int _tmain(int argc, _TCHAR* argv[])
   else
     std::cout << "Object with name \"" << object_name << "\" has not been found" << std::endl;
 
+  Object_cache parsed_objects;
   while (objects_to_process.empty() == false)
   {
     full_name = objects_to_process.front();
@@ -99,17 +101,45 @@ int _tmain(int argc, _TCHAR* argv[])
     if (parser->is_object_parsed())
     {
       auto object = parser->get_parsed_object();
-      object->set_object_name(full_name);
-      object->store(output_pathname);
+      if (object)
+      {
+        object->set_object_name(full_name);
+        parsed_objects.insert(make_pair(full_name, object));
 
-      auto references_objects = object->get_referenced_objects();
-      if (!references_objects.empty())
-        for(const auto& object_name : references_objects)
-          objects_to_process.push(object_name);
+        auto references_objects = object->get_referenced_objects();
+        for_each(references_objects.begin(), references_objects.end(),
+          [&unknown_objects, &parsed_objects, &objects_to_process](const string& object_name)
+        {
+          if (parsed_objects.find(object_name) == parsed_objects.end() &&
+            unknown_objects.find(object_name) == unknown_objects.end())
+            objects_to_process.push(object_name);
+        }
+        );
+      }
     }
     else
+    {
       std::cout << "Objects of this type could not be converted at this time. Sorry!" << std::endl;
-  } 
+      unknown_objects.insert(full_name);
+    }
+  }
 
+  cout << "Resolve dependencies..." << endl;
+  for_each(parsed_objects.begin(), parsed_objects.end(),
+    [&parsed_objects](const pair<string, shared_ptr<Base_object>>& item)
+  {
+    cout << "Object : " << item.first;
+    item.second->resolve_dependencies(parsed_objects);
+    cout << " done." << endl;
+  });
+
+  cout << "Store objects..." << endl;
+  for_each(parsed_objects.begin(), parsed_objects.end(),
+    [&output_pathname](const pair<string, shared_ptr<Base_object>>& item)
+  {
+    cout << "Object : " << item.first;
+    item.second->store(output_pathname);
+    cout << " done." << endl;
+  });
   return 0;
 }

@@ -39,6 +39,7 @@ public:
   virtual bool is_object_correct() const override { return true; }
   virtual void store(const std::string& path) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void resolve_dependencies(const Object_cache&) override { }
   virtual void set_object_name(const std::string&) override { };
 
 private:
@@ -57,11 +58,56 @@ public:
   virtual bool is_object_correct() const override { return true; }
   virtual void store(const std::string& path) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void resolve_dependencies(const Object_cache&) override { }
   virtual void set_object_name(const std::string&) override { };
 private:
   std::vector<std::string> m_lod_names;
 };
 
+struct Bone
+{
+  Bone(const std::string& bone_name) 
+    : name(bone_name), parent_idx(-1) { }
+  std::string name;
+  int32_t parent_idx; // -1 means no parent, i.e. root
+  Geometry::Vector4 pre_rot_quaternion;
+  Geometry::Vector4 post_rot_quaternion;
+  Geometry::Vector3 bind_pose_transform;
+  Geometry::Vector4 bind_pose_rotation;
+  uint32_t rotation_order;
+};
+
+class Skeleton : public Base_object
+{
+public:
+  Skeleton() : m_current_lod(0) { }
+
+  void add_lod_level()
+  {
+    m_bones.push_back(std::vector<Bone>());
+    m_current_lod = static_cast<uint32_t>(m_bones.size() - 1);
+  }
+  uint32_t get_lod_count() const { return static_cast<uint32_t>(m_bones.size()); }
+  uint32_t get_current_lod() const { return m_current_lod; }
+  void set_current_lod(uint32_t lod) { assert(lod < m_bones.size()); m_current_lod = lod; }
+
+  void add_bone(const std::string& bone_name) { m_bones[m_current_lod].emplace_back(bone_name); }
+  Bone& get_bone(uint32_t idx) { return m_bones[m_current_lod][idx]; }
+  uint32_t get_bones_count() const { return static_cast<uint32_t>(m_bones[m_current_lod].size()); }
+
+  void generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode* parent_ptr);
+
+  // Inherited via Base_object
+  virtual bool is_object_correct() const override;
+  virtual void store(const std::string & path) override;
+  virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void resolve_dependencies(const Object_cache & object_list) override;
+  virtual void set_object_name(const std::string & obj_name) override;
+private:
+  std::string m_skeleton_name;
+  std::vector<std::vector<Bone>> m_bones;
+  uint32_t m_current_lod;
+};
 
 class Animated_mesh : public Base_object
 {
@@ -120,7 +166,7 @@ public:
   };
 
 public:
-  Animated_mesh() { }
+  Animated_mesh() : m_lod_level(0) { }
 
   const Info& get_info() const { return m_mesh_info; }
   void set_info(const Info& info);
@@ -139,6 +185,7 @@ public:
   virtual bool is_object_correct() const override;
   virtual void store(const std::string & path) override;
   virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void resolve_dependencies(const Object_cache& object_list) override;
   virtual void set_object_name(const std::string& obj_name) override { m_object_name = obj_name; }
 
 private:
@@ -150,4 +197,6 @@ private:
   std::vector<Geometry::Vector3> m_normals;
   std::vector<Geometry::Vector4> m_lighting_normals;
   std::vector<Shader> m_shaders;
+  std::vector<std::pair<std::string, std::shared_ptr<Skeleton>>> m_used_skeletons;
+  uint32_t m_lod_level;
 };
