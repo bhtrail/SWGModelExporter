@@ -77,6 +77,8 @@ struct Bone
   uint32_t rotation_order;
 };
 
+class Animated_mesh;
+
 class Skeleton : public Base_object
 {
 public:
@@ -95,7 +97,7 @@ public:
   Bone& get_bone(uint32_t idx) { return m_bones[m_current_lod][idx]; }
   uint32_t get_bones_count() const { return static_cast<uint32_t>(m_bones[m_current_lod].size()); }
 
-  void generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode* parent_ptr);
+  void generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode* parent_ptr, Animated_mesh* source_mesh);
 
   // Inherited via Base_object
   virtual bool is_object_correct() const override;
@@ -136,6 +138,7 @@ public:
     void set_position(const Geometry::Point& point) { m_position = point; }
     const Geometry::Point& get_position() const { return m_position; }
     std::vector<std::pair<uint32_t, float>>& get_weights() { return m_weights; }
+    const std::vector<std::pair<uint32_t, float>>& get_weights() const { return m_weights; }
   private:
     Geometry::Point m_position;
     std::vector<std::pair<uint32_t, float>> m_weights;
@@ -173,6 +176,8 @@ public:
 
   void add_vertex_position(const Geometry::Point& position) { m_vertices.emplace_back(position); }
   Vertex& get_vertex(const uint32_t pos_num) { return m_vertices[pos_num]; }
+  const std::vector<Vertex>& get_vertices() const { return m_vertices; }
+  const std::vector<std::string>& get_joint_names() const { return m_joint_names; }
 
   void add_normal(const Geometry::Vector3& norm) { m_normals.emplace_back(norm); }
   void add_lighting_normal(const Geometry::Vector4& light_norm) { m_lighting_normals.emplace_back(light_norm); }

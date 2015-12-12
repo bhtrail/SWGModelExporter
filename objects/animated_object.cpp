@@ -242,7 +242,7 @@ void Animated_mesh::store(const std::string& path)
     if (item.second->get_lod_count() > m_lod_level)
     {
       item.second->set_current_lod(m_lod_level);
-      item.second->generate_skeleton_in_scene(scene_ptr, mesh_node_ptr);
+      item.second->generate_skeleton_in_scene(scene_ptr, mesh_node_ptr, this);
     }
   });
 
@@ -285,68 +285,13 @@ void Animated_mesh::Shader::add_primitive()
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-namespace
-{
-// Recursive function to get a node's global default position.
-// As a prerequisite, parent node's default local position must be already set.
-FbxAMatrix GetGlobalDefaultPosition(FbxNode* pNode)
-{
-  FbxAMatrix lLocalPosition;
-  FbxAMatrix lGlobalPosition;
-  FbxAMatrix lParentGlobalPosition;
-
-  lLocalPosition.SetT(pNode->LclTranslation.Get());
-  lLocalPosition.SetR(pNode->LclRotation.Get());
-  lLocalPosition.SetS(pNode->LclScaling.Get());
-
-  if (pNode->GetParent())
-  {
-    lParentGlobalPosition = GetGlobalDefaultPosition(pNode->GetParent());
-    lGlobalPosition = lParentGlobalPosition * lLocalPosition;
-  }
-  else
-  {
-    lGlobalPosition = lLocalPosition;
-  }
-
-  return lGlobalPosition;
-}
-
-// Function to get a node's global default position.
-// As a prerequisite, parent node's default local position must be already set.
-void SetGlobalDefaultPosition(FbxNode* pNode, FbxAMatrix pGlobalPosition)
-{
-  FbxAMatrix lLocalPosition;
-  FbxAMatrix lParentGlobalPosition;
-
-  if (pNode->GetParent())
-  {
-    lParentGlobalPosition = GetGlobalDefaultPosition(pNode->GetParent());
-    lLocalPosition = lParentGlobalPosition.Inverse() * pGlobalPosition;
-  }
-  else
-  {
-    lLocalPosition = pGlobalPosition;
-  }
-
-  pNode->LclTranslation.Set(lLocalPosition.GetT());
-  pNode->LclRotation.Set(lLocalPosition.GetR());
-  pNode->LclScaling.Set(lLocalPosition.GetS());
-}
-
-}
-
-void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_ptr)
+void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_ptr, Animated_mesh* source_mesh)
 {
   assert(parent_ptr != nullptr && scene_ptr != nullptr);
 
-  map<uint32_t, FbxNode*> index_to_nodes;
   auto bones_count = get_bones_count();
-
-  
-
+  vector<FbxNode*> nodes(bones_count, nullptr);
+  vector<FbxCluster *> clusters(bones_count, nullptr);
   // Set bone attributes
   for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
   {
@@ -361,44 +306,88 @@ void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_
 
     node_ptr->SetNodeAttribute(skeleton_ptr);
 
-    node_ptr->SetPivotState(FbxNode::eSourcePivot, FbxNode::ePivotActive);
-    node_ptr->SetRotationOrder(FbxNode::eSourcePivot, eSphericXYZ);
-    node_ptr->SetQuaternionInterpolation(FbxNode::eSourcePivot, eQuatInterpClassic);
+    FbxQuaternion pre_rot_quat { bone.pre_rot_quaternion.x, bone.pre_rot_quaternion.y, bone.pre_rot_quaternion.z, bone.pre_rot_quaternion.a };
+    FbxQuaternion post_rot_quat { bone.post_rot_quaternion.x, bone.post_rot_quaternion.y, bone.post_rot_quaternion.z, bone.post_rot_quaternion.a };
+    FbxQuaternion bind_rot_quat { bone.bind_pose_rotation.x, bone.bind_pose_rotation.y, bone.bind_pose_rotation.z, bone.bind_pose_rotation.a };
 
-    auto pre_rot = FbxQuaternion { bone.pre_rot_quaternion.x, bone.pre_rot_quaternion.y, bone.pre_rot_quaternion.z, bone.pre_rot_quaternion.a }.DecomposeSphericalXYZ();
-    node_ptr->SetPreRotation(FbxNode::eSourcePivot, pre_rot);
-    auto post_rot = FbxQuaternion { bone.post_rot_quaternion.x, bone.post_rot_quaternion.y, bone.post_rot_quaternion.z, bone.post_rot_quaternion.a }.DecomposeSphericalXYZ();
-    node_ptr->SetPostRotation(FbxNode::eSourcePivot, post_rot);
+    auto full_rot = pre_rot_quat * bind_rot_quat * post_rot_quat;
 
-    index_to_nodes[bone_num] = node_ptr;
+    node_ptr->LclRotation.Set(full_rot.DecomposeSphericalXYZ());
+    node_ptr->LclTranslation.Set(FbxDouble3 { bone.bind_pose_transform.x, bone.bind_pose_transform.y, bone.bind_pose_transform.z });
+
+    nodes[bone_num] = node_ptr;
   }
 
   // build hierarchy
-  for (auto& bone_info : index_to_nodes)
+  for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
   {
-    auto& bone = get_bone(bone_info.first);
+    auto& bone = get_bone(bone_num);
     auto idx_parent = bone.parent_idx;
     if (idx_parent == -1)
-      parent_ptr->AddChild(bone_info.second);
+      parent_ptr->AddChild(nodes[bone_num]);
     else
     {
-      auto& parent = index_to_nodes[idx_parent];
-      parent->AddChild(bone_info.second);
+      auto& parent = nodes[idx_parent];
+      parent->AddChild(nodes[bone_num]);
     }
   }
 
-  FbxVector4 local_trans;
-  FbxVector4 local_rot;
-  FbxAMatrix transform;
+  // build bind pose
 
-  for (auto& bone_info : index_to_nodes)
+  auto mesh_attr = reinterpret_cast<FbxGeometry *>(parent_ptr->GetNodeAttribute());
+  auto skin = FbxSkin::Create(scene_ptr, parent_ptr->GetName());
+  auto xmatr = parent_ptr->EvaluateGlobalTransform();
+  FbxAMatrix link_transform;
+
+  // create clusters
+  // create vertex index arrays for clusters
+  const auto& vertices = source_mesh->get_vertices();
+  map<string, vector<pair<uint32_t, float>>> cluster_vertices;
+  const auto& mesh_joint_names = source_mesh->get_joint_names();
+  for (uint32_t vertex_num = 0; vertex_num < vertices.size(); ++vertex_num)
   {
-    auto& bone = get_bone(bone_info.first);
-    auto& node_ptr = bone_info.second;
-
-    local_trans.Set(bone.bind_pose_transform.x, bone.bind_pose_transform.y, bone.bind_pose_transform.z);
-    node_ptr->LclTranslation.Set(local_trans);
+    const auto& vertex = vertices[vertex_num];
+    for (const auto& weight : vertex.get_weights())
+    {
+      const auto& joint_name = mesh_joint_names[weight.first];
+      cluster_vertices[joint_name].emplace_back(vertex_num, weight.second);
+    }
   }
+
+  for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
+  {
+    auto& bone = get_bone(bone_num);
+    auto cluster = FbxCluster::Create(scene_ptr, bone.name.c_str());
+    cluster->SetLink(nodes[bone_num]);
+    cluster->SetLinkMode(FbxCluster::eTotalOne);
+
+    if (cluster_vertices.find(bone.name) != cluster_vertices.end())
+    {
+      auto& cluster_vertex_array = cluster_vertices[bone.name];
+      for (const auto& vertex_weight : cluster_vertex_array)
+        cluster->AddControlPointIndex(vertex_weight.first, vertex_weight.second);
+    }
+
+    cluster->SetTransformMatrix(xmatr);
+    link_transform = nodes[bone_num]->EvaluateGlobalTransform();
+    cluster->SetTransformLinkMatrix(link_transform);
+
+    clusters[bone_num] = cluster;
+    skin->AddCluster(cluster);
+  }
+  mesh_attr->AddDeformer(skin);
+
+  auto pose_ptr = FbxPose::Create(scene_ptr, parent_ptr->GetName());
+  pose_ptr->SetIsBindPose(true);
+  auto matrix = parent_ptr->EvaluateGlobalTransform();
+  pose_ptr->Add(parent_ptr, matrix);
+
+  for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
+  {
+    matrix = nodes[bone_num]->EvaluateGlobalTransform();
+    pose_ptr->Add(nodes[bone_num], matrix);
+  }
+  scene_ptr->AddPose(pose_ptr);
 }
 
 
