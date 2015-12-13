@@ -379,13 +379,35 @@ void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_
 
   auto pose_ptr = FbxPose::Create(scene_ptr, parent_ptr->GetName());
   pose_ptr->SetIsBindPose(true);
-  auto matrix = parent_ptr->EvaluateGlobalTransform();
-  pose_ptr->Add(parent_ptr, matrix);
 
+  FbxAMatrix matrix;
   for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
   {
     matrix = nodes[bone_num]->EvaluateGlobalTransform();
     pose_ptr->Add(nodes[bone_num], matrix);
+  }
+  scene_ptr->AddPose(pose_ptr);
+
+  // build rest pose
+
+  pose_ptr = FbxPose::Create(scene_ptr, "Rest Pose");
+  for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
+  {
+    auto& bone = get_bone(bone_num);
+
+    auto node_ptr = nodes[bone_num];
+
+    FbxQuaternion pre_rot_quat { bone.pre_rot_quaternion.x, bone.pre_rot_quaternion.y, bone.pre_rot_quaternion.z, bone.pre_rot_quaternion.a };
+    FbxQuaternion post_rot_quat { bone.post_rot_quaternion.x, bone.post_rot_quaternion.y, bone.post_rot_quaternion.z, bone.post_rot_quaternion.a };
+    FbxQuaternion bind_rot_quat { bone.bind_pose_rotation.x, bone.bind_pose_rotation.y, bone.bind_pose_rotation.z, bone.bind_pose_rotation.a };
+
+    auto full_rot = pre_rot_quat * bind_rot_quat * post_rot_quat;
+
+    matrix.SetIdentity();
+
+    matrix.SetR(full_rot.DecomposeSphericalXYZ());
+    matrix.SetT(FbxVector4 { bone.bind_pose_transform.x, bone.bind_pose_transform.y, bone.bind_pose_transform.z });
+    pose_ptr->Add(node_ptr, matrix);
   }
   scene_ptr->AddPose(pose_ptr);
 }

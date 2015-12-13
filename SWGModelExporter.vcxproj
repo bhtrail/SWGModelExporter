@@ -148,6 +148,7 @@
       <AdditionalIncludeDirectories>D:\Libs\boost;D:\Libs\zlib\include;C:\Program Files\Autodesk\FBX\FBX SDK\2016.1.2\include;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
