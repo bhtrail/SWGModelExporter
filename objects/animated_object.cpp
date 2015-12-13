@@ -246,6 +246,40 @@ void Animated_mesh::store(const std::string& path)
     }
   });
 
+  // build morph targets
+  // prepare base vector
+  auto total_vertices = m_vertices.size();
+
+  FbxBlendShape* blend_shape_ptr = FbxBlendShape::Create(scene_ptr, "BlendShapes");
+  for (const auto& morph : m_morphs)
+  {
+    FbxBlendShapeChannel * morph_channel = FbxBlendShapeChannel::Create(scene_ptr, morph.get_name().c_str());
+    FbxShape * shape = FbxShape::Create(scene_ptr, morph_channel->GetName());
+
+    shape->InitControlPoints(static_cast<int>(total_vertices));
+    auto shape_vertices = shape->GetControlPoints();
+
+    // copy base vertices to shape vertices
+    for (size_t idx = 0; idx < total_vertices; ++idx)
+    {
+      auto& pos = m_vertices[idx].get_position();
+      shape_vertices[idx].Set(pos.x, pos.y, pos.z);
+    }
+
+    // apply morph
+    for (auto& morph_pt : morph.get_positions())
+    {
+      size_t idx = morph_pt.first;
+      auto& offset = morph_pt.second;
+      auto& pos = m_vertices[idx].get_position();
+      shape_vertices[idx].Set(pos.x + offset.x, pos.y + offset.y, pos.z + offset.z);
+    }
+
+    morph_channel->AddTargetShape(shape);
+    blend_shape_ptr->AddBlendShapeChannel(morph_channel);
+  }
+  mesh_node_ptr->GetGeometry()->AddDeformer(blend_shape_ptr);
+
   FbxSystemUnit::cm.ConvertScene(scene_ptr);
 
   exporter_ptr->Export(scene_ptr);
@@ -305,10 +339,8 @@ void Animated_mesh::resolve_dependencies(const Object_cache& obj_list, const Obj
           });
 
           if (point_name.empty() && it != m_used_skeletons.end())
-          {
             // mark this skeleton as root
             root_skeleton = it->second;
-          }
           else
           {
             // attach skeleton to root

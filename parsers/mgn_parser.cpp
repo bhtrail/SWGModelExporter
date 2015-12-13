@@ -119,7 +119,46 @@ void mgn_parser::parse_data(const string& name, uint8_t * data_ptr, size_t data_
   }
   else if (name == "POSN" && m_section_received[blts_blt_info] && m_in_blts)
   {
+    auto& morph = m_object->get_current_morph();
+    while (!buffer.end_of_buffer())
+    {
+      uint32_t index = buffer.read_uint32();
+      float x = buffer.read_float();
+      float y = buffer.read_float();
+      float z = buffer.read_float();
 
+      morph.get_positions().emplace_back(index, Geometry::Vector3 { x, y, z });
+    }
+    m_section_received[blts_blt_posn] = buffer.end_of_buffer();
+  }
+  else if (name == "NORM" && m_section_received[blts_blt_posn] && m_in_blts)
+  {
+    auto& morph = m_object->get_current_morph();
+    while (!buffer.end_of_buffer())
+    {
+      uint32_t index = buffer.read_uint32();
+      float x = buffer.read_float();
+      float y = buffer.read_float();
+      float z = buffer.read_float();
+
+      morph.get_normals().emplace_back(index, Geometry::Vector3 { x, y, z });
+    }
+    m_section_received[blts_blt_norm] = buffer.end_of_buffer();
+  }
+  else if (name == "DOT3" && m_section_received[blts_blt_norm] && m_in_blts)
+  {
+    auto& morph = m_object->get_current_morph();
+    uint32_t size = buffer.read_uint32();
+    while (!buffer.end_of_buffer())
+    {
+      uint32_t index = buffer.read_uint32();
+      float x = buffer.read_float();
+      float y = buffer.read_float();
+      float z = buffer.read_float();
+
+      morph.get_tangents().emplace_back(index, Geometry::Vector3 { x, y, z });
+    }
+    m_section_received[blts_blt_dot3] = buffer.end_of_buffer();
   }
 }
 

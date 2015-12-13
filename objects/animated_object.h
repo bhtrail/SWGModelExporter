@@ -187,6 +187,8 @@ public:
     const std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_positions() const { return m_position_offsets; }
     const std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_normals() const { return m_normal_offsets; }
     const std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_tangents() const { return m_tangent_offsets; }
+
+    const std::string get_name() const { return m_name; }
   private:
     std::string m_name;
     std::vector<std::pair<uint32_t, Geometry::Vector3>> m_position_offsets;
