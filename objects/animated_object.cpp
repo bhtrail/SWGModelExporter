@@ -349,7 +349,8 @@ void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_
     const auto& vertex = vertices[vertex_num];
     for (const auto& weight : vertex.get_weights())
     {
-      const auto& joint_name = mesh_joint_names[weight.first];
+      auto joint_name = mesh_joint_names[weight.first];
+      boost::to_lower(joint_name);
       cluster_vertices[joint_name].emplace_back(vertex_num, weight.second);
     }
   }
@@ -361,9 +362,12 @@ void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_
     cluster->SetLink(nodes[bone_num]);
     cluster->SetLinkMode(FbxCluster::eTotalOne);
 
-    if (cluster_vertices.find(bone.name) != cluster_vertices.end())
+    auto bone_name = bone.name;
+    boost::to_lower(bone_name);
+
+    if (cluster_vertices.find(bone_name) != cluster_vertices.end())
     {
-      auto& cluster_vertex_array = cluster_vertices[bone.name];
+      auto& cluster_vertex_array = cluster_vertices[bone_name];
       for (const auto& vertex_weight : cluster_vertex_array)
         cluster->AddControlPointIndex(vertex_weight.first, vertex_weight.second);
     }
@@ -388,28 +392,28 @@ void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_
   }
   scene_ptr->AddPose(pose_ptr);
 
-  // build rest pose
+  //// build rest pose
 
-  pose_ptr = FbxPose::Create(scene_ptr, "Rest Pose");
-  for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
-  {
-    auto& bone = get_bone(bone_num);
+  //pose_ptr = FbxPose::Create(scene_ptr, "Rest Pose");
+  //for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
+  //{
+  //  auto& bone = get_bone(bone_num);
 
-    auto node_ptr = nodes[bone_num];
+  //  auto node_ptr = nodes[bone_num];
 
-    FbxQuaternion pre_rot_quat { bone.pre_rot_quaternion.x, bone.pre_rot_quaternion.y, bone.pre_rot_quaternion.z, bone.pre_rot_quaternion.a };
-    FbxQuaternion post_rot_quat { bone.post_rot_quaternion.x, bone.post_rot_quaternion.y, bone.post_rot_quaternion.z, bone.post_rot_quaternion.a };
-    FbxQuaternion bind_rot_quat { bone.bind_pose_rotation.x, bone.bind_pose_rotation.y, bone.bind_pose_rotation.z, bone.bind_pose_rotation.a };
+  //  FbxQuaternion pre_rot_quat { bone.pre_rot_quaternion.x, bone.pre_rot_quaternion.y, bone.pre_rot_quaternion.z, bone.pre_rot_quaternion.a };
+  //  FbxQuaternion post_rot_quat { bone.post_rot_quaternion.x, bone.post_rot_quaternion.y, bone.post_rot_quaternion.z, bone.post_rot_quaternion.a };
+  //  FbxQuaternion bind_rot_quat { bone.bind_pose_rotation.x, bone.bind_pose_rotation.y, bone.bind_pose_rotation.z, bone.bind_pose_rotation.a };
 
-    auto full_rot = pre_rot_quat * bind_rot_quat * post_rot_quat;
+  //  auto full_rot = pre_rot_quat * bind_rot_quat * post_rot_quat;
 
-    matrix.SetIdentity();
+  //  matrix.SetIdentity();
 
-    matrix.SetR(full_rot.DecomposeSphericalXYZ());
-    matrix.SetT(FbxVector4 { bone.bind_pose_transform.x, bone.bind_pose_transform.y, bone.bind_pose_transform.z });
-    pose_ptr->Add(node_ptr, matrix);
-  }
-  scene_ptr->AddPose(pose_ptr);
+  //  matrix.SetR(full_rot.DecomposeSphericalXYZ());
+  //  matrix.SetT(FbxVector4 { bone.bind_pose_transform.x, bone.bind_pose_transform.y, bone.bind_pose_transform.z });
+  //  pose_ptr->Add(node_ptr, matrix);
+  //}
+  //scene_ptr->AddPose(pose_ptr);
 }
 
 
