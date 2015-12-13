@@ -359,10 +359,10 @@ void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_
     FbxQuaternion post_rot_quat { bone.post_rot_quaternion.x, bone.post_rot_quaternion.y, bone.post_rot_quaternion.z, bone.post_rot_quaternion.a };
     FbxQuaternion bind_rot_quat { bone.bind_pose_rotation.x, bone.bind_pose_rotation.y, bone.bind_pose_rotation.z, bone.bind_pose_rotation.a };
 
-    auto full_rot = pre_rot_quat * bind_rot_quat * post_rot_quat;
+    auto full_rot = post_rot_quat * bind_rot_quat * pre_rot_quat;
 
     node_ptr->SetPreRotation(FbxNode::eSourcePivot, pre_rot_quat.DecomposeSphericalXYZ());
-    node_ptr->SetPostRotation(FbxNode::eSourcePivot, post_rot_quat.DecomposeSphericalXYZ());
+    node_ptr->SetPostTargetRotation(post_rot_quat.DecomposeSphericalXYZ());
 
     node_ptr->LclRotation.Set(full_rot.DecomposeSphericalXYZ());
     node_ptr->LclTranslation.Set(FbxDouble3 { bone.bind_pose_transform.x, bone.bind_pose_transform.y, bone.bind_pose_transform.z });
