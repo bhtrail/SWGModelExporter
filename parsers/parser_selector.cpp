@@ -20,7 +20,7 @@ void Parser_selector::section_begin(const std::string& name, uint8_t * data_ptr,
       m_selected_parser = std::make_shared<lmg_parser>();
     else if (name == "SKMGFORM")
       m_selected_parser = std::make_shared<mgn_parser>();
-    else if (name == "SLODFORM")
+    else if (name == "SLODFORM" || name == "SKTMFORM")
       m_selected_parser = std::make_shared<skt_parser>();
     else
       m_selected_parser = nullptr;

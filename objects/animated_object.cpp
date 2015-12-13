@@ -262,14 +262,63 @@ set<string> Animated_mesh::get_referenced_objects() const
   return names;
 }
 
-void Animated_mesh::resolve_dependencies(const Object_cache& obj_list)
+void Animated_mesh::resolve_dependencies(const Object_cache& obj_list, const Objects_opened_by& open_by)
 {
+  // find object description through open by collection;
+  auto it = open_by.find(m_object_name);
+  string opened_by_name;
+  while (it != open_by.end())
+  {
+    opened_by_name = it->second;
+    it = open_by.find(opened_by_name);
+  }
+
   // get skeletons
   for (auto it_skel = m_skeletons_names.begin(); it_skel != m_skeletons_names.end(); ++it_skel)
   {
     auto obj_it = obj_list.find(*it_skel);
     if (obj_it != obj_list.end() && dynamic_pointer_cast<Skeleton>(obj_it->second))
       m_used_skeletons.emplace_back(*it_skel, dynamic_pointer_cast<Skeleton>(obj_it->second));
+  }
+
+  if (!opened_by_name.empty() && m_used_skeletons.size() > 1)
+  {
+    // check if we opened through SAT and have multiple skeleton definitions
+    //  then we have unite them to one, so we need SAT to get join information from it's skeleton info;
+    auto it = obj_list.find(opened_by_name);
+    if (it != obj_list.end())
+    {
+      auto cat_obj = std::dynamic_pointer_cast<Animated_object_descriptor>(it->second);
+      if (cat_obj)
+      {
+        auto skel_count = cat_obj->get_skeletons_count();
+        shared_ptr<Skeleton> root_skeleton;
+        for (uint32_t skel_idx = 0; skel_idx < skel_count; ++skel_idx)
+        {
+          auto skel_name = cat_obj->get_skeleton_name(skel_idx);
+          auto point_name = cat_obj->get_skeleton_attach_point(skel_idx);
+
+          auto it = std::find_if(m_used_skeletons.begin(), m_used_skeletons.end(),
+            [&skel_name](const pair<string, shared_ptr<Skeleton>>& info)
+          {
+            return (boost::iequals(skel_name, info.first));
+          });
+
+          if (point_name.empty() && it != m_used_skeletons.end())
+          {
+            // mark this skeleton as root
+            root_skeleton = it->second;
+          }
+          else
+          {
+            // attach skeleton to root
+            root_skeleton->join_skeleton_to_point(point_name, it->second);
+            // remove it from used list
+            m_used_skeletons.erase(it);
+          }
+        }
+      }
+    }
   }
 }
 
@@ -312,8 +361,13 @@ void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_
 
     auto full_rot = pre_rot_quat * bind_rot_quat * post_rot_quat;
 
+    node_ptr->SetPreRotation(FbxNode::eSourcePivot, pre_rot_quat.DecomposeSphericalXYZ());
+    node_ptr->SetPostRotation(FbxNode::eSourcePivot, post_rot_quat.DecomposeSphericalXYZ());
+
     node_ptr->LclRotation.Set(full_rot.DecomposeSphericalXYZ());
     node_ptr->LclTranslation.Set(FbxDouble3 { bone.bind_pose_transform.x, bone.bind_pose_transform.y, bone.bind_pose_transform.z });
+
+    node_ptr->ResetPivotSetAndConvertAnimation();
 
     nodes[bone_num] = node_ptr;
   }
@@ -391,29 +445,39 @@ void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_
     pose_ptr->Add(nodes[bone_num], matrix);
   }
   scene_ptr->AddPose(pose_ptr);
+}
 
-  //// build rest pose
+void Skeleton::join_skeleton_to_point(const string& attach_point, const shared_ptr<Skeleton>& skel_to_join)
+{
+  uint32_t attach_point_idx = numeric_limits<uint32_t>::max();
+  auto lods_to_join = min(get_lod_count(), skel_to_join->get_lod_count());
+  for (uint32_t lod = 0; lod < lods_to_join; ++lod)
+  {
+    // find attach point;
+    for (uint32_t idx = 0; idx < m_bones[lod].size(); ++idx)
+    {
+      if (boost::iequals(attach_point, m_bones[lod][idx].name))
+        attach_point_idx = idx;
+    }
 
-  //pose_ptr = FbxPose::Create(scene_ptr, "Rest Pose");
-  //for (uint32_t bone_num = 0; bone_num < bones_count; ++bone_num)
-  //{
-  //  auto& bone = get_bone(bone_num);
-
-  //  auto node_ptr = nodes[bone_num];
-
-  //  FbxQuaternion pre_rot_quat { bone.pre_rot_quaternion.x, bone.pre_rot_quaternion.y, bone.pre_rot_quaternion.z, bone.pre_rot_quaternion.a };
-  //  FbxQuaternion post_rot_quat { bone.post_rot_quaternion.x, bone.post_rot_quaternion.y, bone.post_rot_quaternion.z, bone.post_rot_quaternion.a };
-  //  FbxQuaternion bind_rot_quat { bone.bind_pose_rotation.x, bone.bind_pose_rotation.y, bone.bind_pose_rotation.z, bone.bind_pose_rotation.a };
-
-  //  auto full_rot = pre_rot_quat * bind_rot_quat * post_rot_quat;
-
-  //  matrix.SetIdentity();
-
-  //  matrix.SetR(full_rot.DecomposeSphericalXYZ());
-  //  matrix.SetT(FbxVector4 { bone.bind_pose_transform.x, bone.bind_pose_transform.y, bone.bind_pose_transform.z });
-  //  pose_ptr->Add(node_ptr, matrix);
-  //}
-  //scene_ptr->AddPose(pose_ptr);
+    // attach point found
+    if (attach_point_idx < numeric_limits<uint32_t>::max())
+    {
+      auto& bones_to_join = skel_to_join->m_bones[lod];
+      uint32_t bones_offset = static_cast<uint32_t>(m_bones[lod].size());
+      for (uint32_t idx = 0; idx < bones_to_join.size(); ++idx)
+      {
+        auto bone = bones_to_join[idx];
+        if (bone.parent_idx == -1)
+          bone.parent_idx = attach_point_idx;
+        else
+        {
+          bone.parent_idx += bones_offset;
+        }
+        m_bones[lod].push_back(bone);
+      }
+    }
+  }
 }
 
 
@@ -431,7 +495,7 @@ set<string> Skeleton::get_referenced_objects() const
   return set<string>();
 }
 
-void Skeleton::resolve_dependencies(const Object_cache & object_list)
+void Skeleton::resolve_dependencies(const Object_cache & object_list, const Objects_opened_by& open_by)
 {
 }
 

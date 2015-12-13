@@ -5,9 +5,14 @@
 using namespace std;
 void skt_parser::section_begin(const std::string & name, uint8_t * data_ptr, size_t data_size, uint32_t depth)
 {
-  if (name == "SLODFORM")
+  if (name == "SLODFORM" || (name == "SKTMFORM" && depth == 1))
   {
     m_skeleton = make_shared<Skeleton>();
+    if (name == "SKTMFORM" && depth == 1)
+    {
+      m_skeleton->add_lod_level();
+      m_lods_in_file = 1;
+    }
   }
   else
   {

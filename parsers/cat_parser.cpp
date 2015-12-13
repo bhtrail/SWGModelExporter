@@ -45,7 +45,7 @@ void cat_parser::parse_data(const std::string & name, uint8_t * data_ptr, size_t
     base_buffer buffer(data_ptr, data_size);
     std::string slot;
     std::string skeleton_name;
-    for (uint32_t idx = 0; idx < m_meshes_count; ++idx)
+    for (uint32_t idx = 0; idx < m_skeletons_count; ++idx)
     {
       skeleton_name = buffer.read_stringz();
       slot = buffer.read_stringz();

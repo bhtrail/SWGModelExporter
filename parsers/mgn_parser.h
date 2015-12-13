@@ -36,6 +36,10 @@ private:
 
   void clear_psdt_flags_();
   bool is_psdt_correct_();
+
+  void clear_blt_flags_();
+  bool is_blt_correct_();
+
 private:
   enum section_received
   {

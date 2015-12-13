@@ -19,7 +19,7 @@ void mgn_parser::section_begin(const string& name, uint8_t* data_ptr, size_t dat
       m_in_psdt = true;
 
     if (m_in_blts && m_in_psdt)
-      throw std::runtime_error("Invalid state of parser");
+      throw runtime_error("Invalid state of parser");
   }
 }
 
@@ -107,9 +107,23 @@ void mgn_parser::parse_data(const string& name, uint8_t * data_ptr, size_t data_
   {
     read_shader_triangles_(name, buffer);
   }
+  else if (name == "BLT INFO" && m_section_received[dot3] && m_in_blts)
+  {
+    auto pos_altered = buffer.read_uint32();
+    auto normals_altered = buffer.read_uint32();
+    auto blend_name = buffer.read_stringz();
+
+    clear_blt_flags_();
+    m_object->add_new_morph(blend_name);
+    m_section_received[blts_blt_info] = buffer.end_of_buffer();
+  }
+  else if (name == "POSN" && m_section_received[blts_blt_info] && m_in_blts)
+  {
+
+  }
 }
 
-void mgn_parser::read_shader_triangles_(const std::string & name, base_buffer &buffer)
+void mgn_parser::read_shader_triangles_(const string& name, base_buffer &buffer)
 {
   bool oitl = (name == "OITL");
   auto& curr_shader = m_object->get_current_shader();
@@ -350,4 +364,16 @@ bool mgn_parser::is_psdt_correct_()
     m_section_received[psdt_prim_info] &&
     (m_section_received[psdt_prim_itl] || m_section_received[psdt_prim_oitl])
     ;
+}
+
+void mgn_parser::clear_blt_flags_()
+{
+  for (uint8_t flags = blts; flags <= blts_blt_dot3; flags++)
+    m_section_received[flags] = false;
+}
+
+bool mgn_parser::is_blt_correct_()
+{
+  return m_section_received[blts_blt_info] && m_section_received[blts_blt_posn]
+    && m_section_received[blts_blt_norm] && m_section_received[blts_blt_dot3];
 }

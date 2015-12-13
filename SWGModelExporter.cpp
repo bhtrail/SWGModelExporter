@@ -68,7 +68,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
   auto library = make_shared<Tre_library>(swg_path, &read_callback);
   string full_name;
-  cout << "Looking for object" << endl;
+  std::cout << "Looking for object" << endl;
 
   queue<string> objects_to_process;
   set<string> unknown_objects;
@@ -85,6 +85,8 @@ int _tmain(int argc, _TCHAR* argv[])
     std::cout << "Object with name \"" << object_name << "\" has not been found" << std::endl;
 
   Object_cache parsed_objects;
+  Objects_opened_by opened_by;
+
   while (objects_to_process.empty() == false)
   {
     full_name = objects_to_process.front();
@@ -107,12 +109,15 @@ int _tmain(int argc, _TCHAR* argv[])
         parsed_objects.insert(make_pair(full_name, object));
 
         auto references_objects = object->get_referenced_objects();
-        for_each(references_objects.begin(), references_objects.end(),
-          [&unknown_objects, &parsed_objects, &objects_to_process](const string& object_name)
+        std::for_each(references_objects.begin(), references_objects.end(),
+          [&unknown_objects, &parsed_objects, &objects_to_process, &opened_by, &full_name](const string& object_name)
         {
           if (parsed_objects.find(object_name) == parsed_objects.end() &&
             unknown_objects.find(object_name) == unknown_objects.end())
+          {
             objects_to_process.push(object_name);
+            opened_by[object_name] = full_name;
+          }
         }
         );
       }
@@ -124,22 +129,22 @@ int _tmain(int argc, _TCHAR* argv[])
     }
   }
 
-  cout << "Resolve dependencies..." << endl;
-  for_each(parsed_objects.begin(), parsed_objects.end(),
-    [&parsed_objects](const pair<string, shared_ptr<Base_object>>& item)
+  std::cout << "Resolve dependencies..." << endl;
+  std::for_each(parsed_objects.begin(), parsed_objects.end(),
+    [&parsed_objects, &opened_by](const pair<string, shared_ptr<Base_object>>& item)
   {
-    cout << "Object : " << item.first;
-    item.second->resolve_dependencies(parsed_objects);
-    cout << " done." << endl;
+    std::cout << "Object : " << item.first;
+    item.second->resolve_dependencies(parsed_objects, opened_by);
+    std::cout << " done." << endl;
   });
 
-  cout << "Store objects..." << endl;
+  std::cout << "Store objects..." << endl;
   for_each(parsed_objects.begin(), parsed_objects.end(),
     [&output_pathname](const pair<string, shared_ptr<Base_object>>& item)
   {
-    cout << "Object : " << item.first;
+    std::cout << "Object : " << item.first;
     item.second->store(output_pathname);
-    cout << " done." << endl;
+    std::cout << " done." << endl;
   });
   return 0;
 }

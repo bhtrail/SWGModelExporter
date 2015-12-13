@@ -39,13 +39,16 @@ public:
   virtual bool is_object_correct() const override { return true; }
   virtual void store(const std::string& path) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
-  virtual void resolve_dependencies(const Object_cache&) override { }
-  virtual void set_object_name(const std::string&) override { };
+  virtual void resolve_dependencies(const Object_cache&, const Objects_opened_by&) override { }
+  virtual void set_object_name(const std::string& name) override { m_name = name;  }
+  virtual std::string get_object_name() const override { return m_name; }
 
 private:
   std::vector<std::string> m_mesh_names;
   std::vector<std::pair<std::string, std::string>> m_skeleton_info;
   std::unordered_map<std::string, std::string> m_animations_map;
+
+  std::string m_name;
 };
 
 class Animated_lod_list : public Base_object
@@ -58,10 +61,12 @@ public:
   virtual bool is_object_correct() const override { return true; }
   virtual void store(const std::string& path) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
-  virtual void resolve_dependencies(const Object_cache&) override { }
-  virtual void set_object_name(const std::string&) override { };
+  virtual void resolve_dependencies(const Object_cache&, const Objects_opened_by&) override { }
+  virtual void set_object_name(const std::string& name) override { m_name = name; }
+  virtual std::string get_object_name() const override { return m_name; }
 private:
   std::vector<std::string> m_lod_names;
+  std::string m_name;
 };
 
 struct Bone
@@ -98,13 +103,16 @@ public:
   uint32_t get_bones_count() const { return static_cast<uint32_t>(m_bones[m_current_lod].size()); }
 
   void generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode* parent_ptr, Animated_mesh* source_mesh);
+  void join_skeleton_to_point(const std::string& attach_point, const std::shared_ptr<Skeleton>& skel_to_join);
 
   // Inherited via Base_object
   virtual bool is_object_correct() const override;
   virtual void store(const std::string & path) override;
   virtual std::set<std::string> get_referenced_objects() const override;
-  virtual void resolve_dependencies(const Object_cache & object_list) override;
+  virtual void resolve_dependencies(const Object_cache & object_list, const Objects_opened_by& open_by) override;
   virtual void set_object_name(const std::string & obj_name) override;
+  virtual std::string get_object_name() const override { return m_skeleton_name; }
+
 private:
   std::string m_skeleton_name;
   std::vector<std::vector<Bone>> m_bones;
@@ -168,6 +176,24 @@ public:
     std::vector<std::pair<uint32_t, uint32_t>> m_primitives;
   };
 
+  class Morph_target
+  {
+  public:
+    Morph_target(const std::string& name) : m_name(name) { }
+    std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_positions() { return m_position_offsets; }
+    std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_normals() { return m_normal_offsets; }
+    std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_tangents() { return m_tangent_offsets; }
+
+    const std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_positions() const { return m_position_offsets; }
+    const std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_normals() const { return m_normal_offsets; }
+    const std::vector<std::pair<uint32_t, Geometry::Vector3>>& get_tangents() const { return m_tangent_offsets; }
+  private:
+    std::string m_name;
+    std::vector<std::pair<uint32_t, Geometry::Vector3>> m_position_offsets;
+    std::vector<std::pair<uint32_t, Geometry::Vector3>> m_normal_offsets;
+    std::vector<std::pair<uint32_t, Geometry::Vector3>> m_tangent_offsets;
+  };
+
 public:
   Animated_mesh() : m_lod_level(0) { }
 
@@ -184,14 +210,17 @@ public:
   void add_skeleton_name(const std::string& name) { m_skeletons_names.emplace_back(name); }
   void add_joint_name(const std::string& name) { m_joint_names.emplace_back(name); }
   void add_new_shader(const std::string& name) { m_shaders.emplace_back(name); }
-  Shader& get_current_shader() { return m_shaders.back(); }
+  void add_new_morph(const std::string& name) { m_morphs.emplace_back(name); }
+  Shader& get_current_shader() { assert(m_shaders.empty() == false); return m_shaders.back(); }
+  Morph_target& get_current_morph() { assert(m_morphs.empty() == false); return m_morphs.back(); }
 
   // Inherited via Base_object
   virtual bool is_object_correct() const override;
   virtual void store(const std::string & path) override;
   virtual std::set<std::string> get_referenced_objects() const override;
-  virtual void resolve_dependencies(const Object_cache& object_list) override;
+  virtual void resolve_dependencies(const Object_cache& object_list, const Objects_opened_by& open_by) override;
   virtual void set_object_name(const std::string& obj_name) override { m_object_name = obj_name; }
+  virtual std::string get_object_name() const override { return m_object_name; }
 
 private:
   std::string m_object_name;
@@ -203,5 +232,6 @@ private:
   std::vector<Geometry::Vector4> m_lighting_normals;
   std::vector<Shader> m_shaders;
   std::vector<std::pair<std::string, std::shared_ptr<Skeleton>>> m_used_skeletons;
+  std::vector<Morph_target> m_morphs;
   uint32_t m_lod_level;
 };
