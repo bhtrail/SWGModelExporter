@@ -97,7 +97,7 @@ void Animated_mesh::store(const std::string& path)
   if (!exporter_ptr)
     return;
 
-  exporter_ptr->SetFileExportVersion(FBX_2013_00_COMPATIBLE);
+  exporter_ptr->SetFileExportVersion(FBX_2014_00_COMPATIBLE);
   bool result = exporter_ptr->Initialize(target_path.string().c_str(), -1, fbx_manager_ptr->GetIOSettings());
   if (!result)
   {
@@ -155,7 +155,7 @@ void Animated_mesh::store(const std::string& path)
     auto& normals = shader.get_normal_indexes();
     auto& tangents = shader.get_light_indexes();
 
-    uint32_t idx_offset = static_cast<uint32_t>(uvs.size());
+    auto idx_offset = static_cast<uint32_t>(uvs.size());
     copy(shader.get_texels().begin(), shader.get_texels().end(), back_inserter(uvs));
 
     normal_indexes.reserve(normal_indexes.size() + normals.size());
@@ -167,15 +167,15 @@ void Animated_mesh::store(const std::string& path)
       mesh_ptr->BeginPolygon(shader_idx, -1, shader_idx, false);
       for (size_t i = 0; i < 3; ++i)
       {
-        uint32_t remapped_pos_idx = positions[tri.points[i]];
+        auto remapped_pos_idx = positions[tri.points[i]];
         mesh_ptr->AddPolygon(remapped_pos_idx);
 
-        uint32_t remapped_normal_idx = normals[tri.points[i]];
+        auto remapped_normal_idx = normals[tri.points[i]];
         normal_indexes.emplace_back(remapped_normal_idx);
 
         if (!tangents.empty())
         {
-          uint32_t remapped_tangent = tangents[tri.points[i]];
+          auto remapped_tangent = tangents[tri.points[i]];
           tangents.emplace_back(remapped_tangent);
         }
         uv_indexes.emplace_back(idx_offset + tri.points[i]);
