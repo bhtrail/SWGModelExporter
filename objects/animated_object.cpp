@@ -90,7 +90,7 @@ void Animated_mesh::store(const std::string& path)
     return;
 
   FbxIOSettings* ios_ptr = FbxIOSettings::Create(fbx_manager_ptr, IOSROOT);
-  ios_ptr->SetIntProp(EXP_FBX_EXPORT_FILE_VERSION, FBX_FILE_VERSION_7000);
+  ios_ptr->SetIntProp(EXP_FBX_EXPORT_FILE_VERSION, FBX_FILE_VERSION_7400);
   fbx_manager_ptr->SetIOSettings(ios_ptr);
 
   FbxExporter* exporter_ptr = FbxExporter::Create(fbx_manager_ptr, "");
@@ -273,6 +273,61 @@ void Animated_mesh::store(const std::string& path)
       auto& offset = morph_pt.second;
       auto& pos = m_vertices[idx].get_position();
       shape_vertices[idx].Set(pos.x + offset.x, pos.y + offset.y, pos.z + offset.z);
+    }
+
+    if (!normal_indexes.empty())
+    {
+      // get normals
+      auto normal_element = shape->CreateElementNormal();
+      normal_element->SetMappingMode(FbxGeometryElement::eByPolygonVertex);
+      normal_element->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
+
+      auto& direct_array = normal_element->GetDirectArray();
+      // set a base normals 
+      for_each(m_normals.begin(), m_normals.end(),
+        [&direct_array](const Geometry::Vector3& elem)
+      {
+        direct_array.Add(FbxVector4(elem.x, elem.y, elem.z));
+      });
+
+      for (auto &morph_normal : morph.get_normals())
+      {
+        uint32_t idx = morph_normal.first;
+        auto& offset = morph_normal.second;
+        auto& base = m_normals[idx];
+        direct_array[idx].Set(base.x + offset.x, base.y + offset.y, base.z + offset.z);
+      }
+
+      auto& index_array = normal_element->GetIndexArray();
+      for_each(normal_indexes.begin(), normal_indexes.end(),
+        [&index_array](const uint32_t& idx) { index_array.Add(idx); });
+    }
+
+    if (!tangents_idxs.empty())
+    {
+      // get tangents
+      auto tangents_ptr = shape->CreateElementTangent();
+      tangents_ptr->SetMappingMode(FbxGeometryElement::eByPolygonVertex);
+      tangents_ptr->SetReferenceMode(FbxGeometryElement::eIndexToDirect);
+
+      auto& direct_array = tangents_ptr->GetDirectArray();
+      for_each(m_lighting_normals.begin(), m_lighting_normals.end(),
+        [&direct_array](const Geometry::Vector4& elem)
+      {
+        direct_array.Add(FbxVector4(elem.x, elem.y, elem.z));
+      });
+
+      for (auto& morph_tangent : morph.get_tangents())
+      {
+        uint32_t idx = morph_tangent.first;
+        auto& offset = morph_tangent.second;
+        auto& base = m_lighting_normals[idx];
+        direct_array[idx].Set(base.x + offset.x, base.y + offset.y, base.z + offset.z);
+      }
+
+      auto& index_array = tangents_ptr->GetIndexArray();
+      for_each(tangents_idxs.begin(), tangents_idxs.end(),
+        [&index_array](const uint32_t& idx) { index_array.Add(idx); });
     }
 
     morph_channel->AddTargetShape(shape);
