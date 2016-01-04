@@ -6,6 +6,7 @@
 #pragma once
 
 #define _SCL_SECURE_NO_WARNINGS
+#define NOMINMAX
 
 #include "targetver.h"
 
@@ -15,6 +16,7 @@
 
 
 // TODO: reference additional headers your program requires here
+#include <Windows.h>
 
 // STL
 #include <cctype>
@@ -48,3 +50,6 @@
 
 // FBX SDK
 #include <fbxsdk.h>
+
+// DirectXTex
+#include <DirectXTex.h>

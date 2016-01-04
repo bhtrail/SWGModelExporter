@@ -20,6 +20,7 @@ public:
   float read_float() { return _read<float>(); }
   double read_double() { return _read<double>(); }
   std::string read_string();
+  std::string read_string(size_t max_size);
   std::string read_stringz();
   std::wstring read_wstring();
 

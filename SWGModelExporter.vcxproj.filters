@@ -72,6 +72,9 @@
     <ClInclude Include="parsers\skt_parser.h">
       <Filter>Source Files\parsers</Filter>
     </ClInclude>
+    <ClInclude Include="parsers\sht_parser.h">
+      <Filter>Source Files\parsers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -108,6 +111,9 @@
       <Filter>Source Files\parsers</Filter>
     </ClCompile>
     <ClCompile Include="parsers\skt_parser.cpp">
+      <Filter>Source Files\parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="parsers\sht_parser.cpp">
       <Filter>Source Files\parsers</Filter>
     </ClCompile>
   </ItemGroup>

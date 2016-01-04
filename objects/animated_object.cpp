@@ -142,11 +142,47 @@ void Animated_mesh::store(const std::string& path)
   for (uint32_t shader_idx = 0; shader_idx < m_shaders.size(); ++shader_idx)
   {
     auto& shader = m_shaders[shader_idx];
+    auto& material = shader.get_definition()->material();
+    auto& textures = shader.get_definition()->textures();
 
     // create material for this shader
     auto material_ptr = FbxSurfacePhong::Create(scene_ptr, shader.get_name().c_str());
     material_ptr->ShadingModel.Set("Phong");
-    material_ptr->Ambient.Set(FbxDouble3(0.7, 0.7, 0.7));
+    material_ptr->Ambient.Set(FbxDouble3(material.ambient.r, material.ambient.g, material.ambient.g));
+    material_ptr->Diffuse.Set(FbxDouble3(material.diffuse.r, material.diffuse.g, material.diffuse.g));
+    material_ptr->Emissive.Set(FbxDouble3(material.emissive.r, material.emissive.g, material.emissive.g));
+    material_ptr->Specular.Set(FbxDouble3(material.specular.r, material.specular.g, material.specular.g));
+
+    // add texture definitions
+    for (auto& texture_def : textures)
+    {
+      FbxFileTexture* texture = FbxFileTexture::Create(scene_ptr, texture_def.tex_file_name.c_str());
+      boost::filesystem::path tex_path(path);
+      tex_path /= texture_def.tex_file_name;
+      tex_path.replace_extension("tga");
+
+      texture->SetFileName(tex_path.string().c_str());
+      texture->SetTextureUse(FbxTexture::eStandard);
+      texture->SetMaterialUse(FbxFileTexture::eModelMaterial);
+      texture->SetMappingType(FbxTexture::eUV);
+      texture->SetWrapMode(FbxTexture::eRepeat, FbxTexture::eRepeat);
+      texture->SetTranslation(0.0, 0.0);
+      texture->SetScale(1.0, 1.0);
+      texture->SetTranslation(0.0, 0.0);
+      switch (texture_def.texture_type)
+      {
+      case Shader::texture_type::main:
+        material_ptr->Diffuse.ConnectSrcObject(texture);
+        break;
+      case Shader::texture_type::normal:
+        material_ptr->Bump.ConnectSrcObject(texture);
+        break;
+      case Shader::texture_type::specular:
+        material_ptr->Specular.ConnectSrcObject(texture);
+        break;
+      }
+    }
+
     mesh_ptr->GetNode()->AddMaterial(material_ptr);
 
     // get geometry element
@@ -347,26 +383,34 @@ set<string> Animated_mesh::get_referenced_objects() const
   set<string> names;
   names.insert(m_skeletons_names.begin(), m_skeletons_names.end());
   for_each(m_shaders.begin(), m_shaders.end(),
-    [&names](const Shader& shader) { names.insert(shader.get_name()); });
+    [&names](const Shader_appliance& shader) { names.insert(shader.get_name()); });
   return names;
 }
 
-void Animated_mesh::resolve_dependencies(const Object_cache& obj_list, const Objects_opened_by& open_by)
+void Animated_mesh::resolve_dependencies(const Context& context)
 {
   // find object description through open by collection;
-  auto it = open_by.find(m_object_name);
+  auto it = context.opened_by.find(m_object_name);
   string opened_by_name;
-  while (it != open_by.end())
+  while (it != context.opened_by.end())
   {
     opened_by_name = it->second;
-    it = open_by.find(opened_by_name);
+    it = context.opened_by.find(opened_by_name);
+  }
+
+  // get shaders
+  for (auto it_shad = m_shaders.begin(); it_shad != m_shaders.end(); ++it_shad)
+  {
+    auto obj_it = context.object_list.find(it_shad->get_name());
+    if (obj_it != context.object_list.end() && dynamic_pointer_cast<Shader>(obj_it->second))
+      it_shad->set_definition(dynamic_pointer_cast<Shader>(obj_it->second));
   }
 
   // get skeletons
   for (auto it_skel = m_skeletons_names.begin(); it_skel != m_skeletons_names.end(); ++it_skel)
   {
-    auto obj_it = obj_list.find(*it_skel);
-    if (obj_it != obj_list.end() && dynamic_pointer_cast<Skeleton>(obj_it->second))
+    auto obj_it = context.object_list.find(*it_skel);
+    if (obj_it != context.object_list.end() && dynamic_pointer_cast<Skeleton>(obj_it->second))
       m_used_skeletons.emplace_back(*it_skel, dynamic_pointer_cast<Skeleton>(obj_it->second));
   }
 
@@ -374,8 +418,8 @@ void Animated_mesh::resolve_dependencies(const Object_cache& obj_list, const Obj
   {
     // check if we opened through SAT and have multiple skeleton definitions
     //  then we have unite them to one, so we need SAT to get join information from it's skeleton info;
-    auto it = obj_list.find(opened_by_name);
-    if (it != obj_list.end())
+    auto it = context.object_list.find(opened_by_name);
+    if (it != context.object_list.end())
     {
       auto cat_obj = std::dynamic_pointer_cast<Animated_object_descriptor>(it->second);
       if (cat_obj)
@@ -409,7 +453,7 @@ void Animated_mesh::resolve_dependencies(const Object_cache& obj_list, const Obj
   }
 }
 
-void Animated_mesh::Shader::add_primitive()
+void Animated_mesh::Shader_appliance::add_primitive()
 {
   uint32_t new_primitive_position = static_cast<uint32_t>(m_triangles.size());
   if (!m_primitives.empty() && m_primitives.back().second == 0)
@@ -582,11 +626,86 @@ set<string> Skeleton::get_referenced_objects() const
   return set<string>();
 }
 
-void Skeleton::resolve_dependencies(const Object_cache & object_list, const Objects_opened_by& open_by)
+void Skeleton::resolve_dependencies(const Context& context)
 {
 }
 
 void Skeleton::set_object_name(const std::string & obj_name)
 {
   m_skeleton_name = obj_name;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Shader::texture_type Shader::get_texture_type(const std::string & texture_tag)
+{
+  if (texture_tag == "MAIN")
+    return texture_type::main;
+  else if (texture_tag == "NRML")
+    return texture_type::normal;
+  else if (texture_tag == "DOT3")
+    return texture_type::lightmap;
+  else if (texture_tag == "SPEC")
+    return texture_type::specular;
+  return texture_type::none_type;
+}
+
+set<string> Shader::get_referenced_objects() const
+{
+  set<string> result;
+  for_each(m_textures.begin(), m_textures.end(),
+    [&result](const Texture& texture) { result.insert(texture.tex_file_name); });
+
+  for_each(m_palettes.begin(), m_palettes.end(),
+    [&result](const Palette& palette) { result.insert(palette.palette_file); });
+
+  return result;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+shared_ptr<DDS_Texture> DDS_Texture::construct(const string& name, const uint8_t* buffer, size_t buf_size)
+{
+  DirectX::TexMetadata meta;
+  shared_ptr<DirectX::ScratchImage> image = make_shared<DirectX::ScratchImage>();
+  HRESULT hr = DirectX::LoadFromDDSMemory(buffer, buf_size, DirectX::DDS_FLAGS_NONE, &meta, *image);
+  if (SUCCEEDED(hr))
+  {
+    shared_ptr<DDS_Texture> ret_object = make_shared<DDS_Texture>();
+    ret_object->set_object_name(name);
+    ret_object->m_image = image;
+    return ret_object;
+  }
+
+  return nullptr;
+}
+
+void DDS_Texture::store(const string& path)
+{
+  boost::filesystem::path out_path(path);
+
+  out_path /= m_name;
+  out_path.replace_extension("tga");
+  out_path.normalize();
+
+  auto directory = out_path.parent_path();
+  if (!boost::filesystem::exists(directory))
+    boost::filesystem::create_directories(directory);
+
+  auto image = m_image->GetImage(0, 0, 0);
+  const DirectX::Image* out_image = nullptr;
+  DirectX::ScratchImage decompressed;
+  if (DirectX::IsCompressed(image->format))
+  {
+    DirectX::Decompress(*image, DXGI_FORMAT_R8G8B8A8_UNORM, decompressed);
+    out_image = decompressed.GetImage(0, 0, 0);
+  }
+  else
+    out_image = image;
+
+  DirectX::SaveToTGAFile(*out_image, out_path.wstring().c_str());
 }

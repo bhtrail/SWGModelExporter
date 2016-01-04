@@ -35,15 +35,19 @@ size_t base_buffer::set_position(size_t new_position)
 std::string base_buffer::read_string()
 {
   uint16_t string_size = read_uint16();
-  if ((m_position + string_size) > m_actual_data_size)
+  return std::move(read_string(string_size));
+}
+
+std::string base_buffer::read_string(size_t size)
+{
+  if (m_position + size > m_actual_data_size)
     throw std::range_error("result outside of buffer size");
 
   auto it_begin = m_data.begin() + m_position;
-  auto it_end = it_begin + string_size;
-
+  auto it_end = it_begin + size;
   std::string result(it_begin, it_end);
-  m_position += string_size;
-  return result;
+  m_position += size;
+  return std::move(result);
 }
 
 std::string base_buffer::read_stringz()

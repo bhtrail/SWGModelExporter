@@ -39,7 +39,7 @@ public:
   virtual bool is_object_correct() const override { return true; }
   virtual void store(const std::string& path) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
-  virtual void resolve_dependencies(const Object_cache&, const Objects_opened_by&) override { }
+  virtual void resolve_dependencies(const Context&) override { }
   virtual void set_object_name(const std::string& name) override { m_name = name;  }
   virtual std::string get_object_name() const override { return m_name; }
 
@@ -61,7 +61,7 @@ public:
   virtual bool is_object_correct() const override { return true; }
   virtual void store(const std::string& path) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
-  virtual void resolve_dependencies(const Object_cache&, const Objects_opened_by&) override { }
+  virtual void resolve_dependencies(const Context&) override { }
   virtual void set_object_name(const std::string& name) override { m_name = name; }
   virtual std::string get_object_name() const override { return m_name; }
 private:
@@ -69,23 +69,136 @@ private:
   std::string m_name;
 };
 
-struct Bone
+class DDS_Texture : public Base_object
 {
-  Bone(const std::string& bone_name) 
-    : name(bone_name), parent_idx(-1) { }
-  std::string name;
-  int32_t parent_idx; // -1 means no parent, i.e. root
-  Geometry::Vector4 pre_rot_quaternion;
-  Geometry::Vector4 post_rot_quaternion;
-  Geometry::Vector3 bind_pose_transform;
-  Geometry::Vector4 bind_pose_rotation;
-  uint32_t rotation_order;
+public:
+  static std::shared_ptr<DDS_Texture> construct(const std::string& name, const uint8_t* buffer, size_t buf_size);
+
+  // Inherited via Base_object
+  virtual bool is_object_correct() const override { return (m_name.empty() == false && m_image); }
+  virtual void store(const std::string & path) override;
+  virtual std::set<std::string> get_referenced_objects() const override { return std::set<std::string>(); }
+  virtual void resolve_dependencies(const Context & context) override { }
+  virtual void set_object_name(const std::string & obj_name) override { m_name = obj_name; }
+  virtual std::string get_object_name() const override { return m_name; }
+
+private:
+  std::string m_name;
+  std::shared_ptr<DirectX::ScratchImage> m_image = nullptr;
+};
+
+class Shader : public Base_object
+{
+public:
+  struct Material
+  {
+    Graphics::Color ambient;
+    Graphics::Color diffuse;
+    Graphics::Color emissive;
+    Graphics::Color specular;
+    float strength; // TODO : Clarify what is it
+  };
+
+  enum texture_mode : uint8_t
+  {
+    wrap = 0,
+    mirror = 1,
+    clamp = 2,
+    border = 3,
+    mirror_once = 4,
+    tex_mode_invalid = 5
+  };
+
+  enum filter_mode : uint8_t
+  {
+    none = 0,
+    point = 1,
+    linear = 2,
+    anisotropic = 3,
+    flat_cubic = 4,
+    gaussian_cubic = 5,
+    filter_mode_invalid = 6
+  };
+
+  enum texture_type : uint8_t
+  {
+    specular = 0,
+    main = 1,
+    normal = 2,
+    lightmap = 3,
+    none_type = 0xFF
+  };
+
+  struct Texture
+  {
+    bool placeholder; //?
+    texture_mode address_u;
+    texture_mode address_v;
+    texture_mode address_z;
+    filter_mode mipmap;
+    filter_mode minification;
+    filter_mode magnification;
+    texture_type texture_type;
+    std::string texture_tag;
+    std::string tex_file_name;
+  };
+
+  struct Palette
+  {
+    std::string color_index;
+    uint8_t private_color;
+    std::string texture_tag;
+    std::string palette_file;
+    uint32_t palette_id;
+  };
+
+  Shader() { }
+  Material& material() { return m_material; }
+  const Material& material() const { return m_material; }
+
+  std::vector<Texture>& textures() { return m_textures; }
+  const std::vector<Texture>& textures() const { return m_textures; }
+
+  std::vector<Palette>& palettes() { return m_palettes; }
+  const std::vector<Palette>& palettes() const { return m_palettes; }
+
+  static texture_type get_texture_type(const std::string& texture_tag);
+
+  virtual bool is_object_correct() const override { return true; }
+  virtual void store(const std::string&) override { }
+  virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void resolve_dependencies(const Context&) override { }
+  virtual void set_object_name(const std::string& name) override { m_name = name; }
+  virtual std::string get_object_name() const { return m_name; }
+
+private:
+  Material m_material;
+  std::vector<Texture> m_textures;
+  std::vector<Palette> m_palettes;
+
+  std::string m_name;
 };
 
 class Animated_mesh;
 
 class Skeleton : public Base_object
 {
+public:
+  struct Bone
+  {
+    Bone(const std::string& bone_name)
+      : name(bone_name), parent_idx(-1)
+    {
+    }
+    std::string name;
+    int32_t parent_idx; // -1 means no parent, i.e. root
+    Geometry::Vector4 pre_rot_quaternion;
+    Geometry::Vector4 post_rot_quaternion;
+    Geometry::Vector3 bind_pose_transform;
+    Geometry::Vector4 bind_pose_rotation;
+    uint32_t rotation_order;
+  };
+
 public:
   Skeleton() : m_current_lod(0) { }
 
@@ -109,7 +222,7 @@ public:
   virtual bool is_object_correct() const override;
   virtual void store(const std::string & path) override;
   virtual std::set<std::string> get_referenced_objects() const override;
-  virtual void resolve_dependencies(const Object_cache & object_list, const Objects_opened_by& open_by) override;
+  virtual void resolve_dependencies(const Context& context) override;
   virtual void set_object_name(const std::string & obj_name) override;
   virtual std::string get_object_name() const override { return m_skeleton_name; }
 
@@ -152,10 +265,10 @@ public:
     std::vector<std::pair<uint32_t, float>> m_weights;
   };
 
-  class Shader
+  class Shader_appliance
   {
   public:
-    Shader(const std::string& name) : m_name(name) { }
+    Shader_appliance(const std::string& name) : m_name(name) { }
     const std::string& get_name() const { return m_name; }
     std::vector<uint32_t>& get_pos_indexes() { return m_position_indexes; }
     std::vector<uint32_t>& get_normal_indexes() { return m_normal_indexes; }
@@ -163,6 +276,8 @@ public:
     std::vector<Graphics::Tex_coord>& get_texels() { return m_texels; }
     std::vector<Graphics::Triangle_indexed>& get_triangles() { return m_triangles; }
     std::vector<std::pair<uint32_t, uint32_t>>& get_primivites() { return m_primitives; }
+    void set_definition(const std::shared_ptr<Shader>& shader_def) { m_shader_definition = shader_def; }
+    const std::shared_ptr<Shader>& get_definition() { return m_shader_definition; }
 
     void add_primitive();
     void close_primitive() { m_primitives.back().second = static_cast<uint32_t>(m_primitives.size()); }
@@ -174,6 +289,7 @@ public:
     std::vector<Graphics::Tex_coord> m_texels;
     std::vector<Graphics::Triangle_indexed> m_triangles;
     std::vector<std::pair<uint32_t, uint32_t>> m_primitives;
+    std::shared_ptr<Shader> m_shader_definition;
   };
 
   class Morph_target
@@ -213,14 +329,14 @@ public:
   void add_joint_name(const std::string& name) { m_joint_names.emplace_back(name); }
   void add_new_shader(const std::string& name) { m_shaders.emplace_back(name); }
   void add_new_morph(const std::string& name) { m_morphs.emplace_back(name); }
-  Shader& get_current_shader() { assert(m_shaders.empty() == false); return m_shaders.back(); }
+  Shader_appliance& get_current_shader() { assert(m_shaders.empty() == false); return m_shaders.back(); }
   Morph_target& get_current_morph() { assert(m_morphs.empty() == false); return m_morphs.back(); }
 
   // Inherited via Base_object
   virtual bool is_object_correct() const override;
   virtual void store(const std::string & path) override;
   virtual std::set<std::string> get_referenced_objects() const override;
-  virtual void resolve_dependencies(const Object_cache& object_list, const Objects_opened_by& open_by) override;
+  virtual void resolve_dependencies(const Context& context) override;
   virtual void set_object_name(const std::string& obj_name) override { m_object_name = obj_name; }
   virtual std::string get_object_name() const override { return m_object_name; }
 
@@ -232,7 +348,7 @@ private:
   std::vector<Vertex> m_vertices;
   std::vector<Geometry::Vector3> m_normals;
   std::vector<Geometry::Vector4> m_lighting_normals;
-  std::vector<Shader> m_shaders;
+  std::vector<Shader_appliance> m_shaders;
   std::vector<std::pair<std::string, std::shared_ptr<Skeleton>>> m_used_skeletons;
   std::vector<Morph_target> m_morphs;
   uint32_t m_lod_level;
