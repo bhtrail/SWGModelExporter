@@ -29,7 +29,7 @@ void cat_parser::parse_data(const std::string & name, uint8_t * data_ptr, size_t
     m_latx_present = (buffer.read_uint8() == 1);
     m_section_received[info] = buffer.end_of_buffer();
   }
-  else if (name == "MSGN" && m_section_received[info])
+  else if (name == "MSGN" && m_section_received[info] && m_meshes_count > 0)
   {
     base_buffer buffer(data_ptr, data_size);
     std::string mesh_name;
@@ -40,7 +40,7 @@ void cat_parser::parse_data(const std::string & name, uint8_t * data_ptr, size_t
     }
     m_section_received[msgn] = buffer.end_of_buffer();
   }
-  else if (name == "SKTI" && m_section_received[msgn])
+  else if (name == "SKTI" && m_section_received[msgn] && m_skeletons_count > 0)
   {
     base_buffer buffer(data_ptr, data_size);
     std::string slot;

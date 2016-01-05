@@ -201,7 +201,9 @@ public:
 
 public:
   Skeleton() : m_current_lod(0) { }
+  Skeleton(const Skeleton& skt) : m_skeleton_name(skt.m_skeleton_name), m_bones(skt.m_bones), m_current_lod(skt.m_current_lod) { }
 
+  std::shared_ptr<Skeleton> clone();
   void add_lod_level()
   {
     m_bones.push_back(std::vector<Bone>());

@@ -36,13 +36,17 @@ void mgn_parser::section_end(uint32_t depth)
 
 void mgn_parser::parse_data(const string& name, uint8_t * data_ptr, size_t data_size)
 {
+  // workaround of zero sized buffer
+  if (data_size == 0)
+    return;
+
   base_buffer buffer(data_ptr, data_size);
 
   if (name == "0004INFO" && m_section_received[skmg])
   {
     read_mesh_info_(buffer);
   }
-  else if (name == "SKTM" && m_section_received[info])
+  else if (name == "SKTM" && m_section_received[info] && m_object->get_info().num_skeletons > 0)
   {
     read_skeletons_list_(buffer);
   }

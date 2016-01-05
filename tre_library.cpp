@@ -5,10 +5,12 @@ namespace Tre_navigator
 {
   namespace fs = std::experimental::filesystem;
 
-  Tre_library::Tre_library(const std::string & path, Tre_library_reader_callback * callback_ptr)
+  using namespace std;
+
+  Tre_library::Tre_library(const string & path, Tre_library_reader_callback * callback_ptr)
   {
     fs::directory_iterator file_enum(path);
-    std::vector<std::string> files;
+    vector<string> files;
 
     for (auto& file_item : file_enum)
     {
@@ -16,7 +18,7 @@ namespace Tre_navigator
         files.push_back(file_item.path().string());
     }
 
-    std::sort(files.begin(), files.end());
+    sort(files.begin(), files.end());
     if (callback_ptr != nullptr)
       callback_ptr->number_of_files(files.size());
 
@@ -45,11 +47,11 @@ namespace Tre_navigator
 
   bool Tre_library::get_object_name(const std::string & partial_name, std::string & full_name)
   {
-    std::regex pattern("(.*)" + partial_name);
-    auto result = std::find_if(m_reader_lookup.begin(), m_reader_lookup.end(),
-                               [&pattern](const std::pair<std::string, std::weak_ptr<Tre_reader>> &item)
+    regex pattern("(.*)" + partial_name);
+    auto result = find_if(m_reader_lookup.begin(), m_reader_lookup.end(),
+                    [&pattern](const pair<string, weak_ptr<Tre_reader>> &item)
     {
-      return std::regex_match(item.first, pattern);
+      return regex_match(item.first, pattern);
     });
 
     auto ret = result != m_reader_lookup.end();
@@ -58,7 +60,7 @@ namespace Tre_navigator
     return ret;
   }
 
-  size_t Tre_library::number_of_object_versions(const std::string & name)
+  size_t Tre_library::number_of_object_versions(const string & name)
   {
     auto object = m_reader_lookup.find(name);
     if (object != m_reader_lookup.end())
@@ -70,9 +72,9 @@ namespace Tre_navigator
     return size_t(-1);
   }
 
-  std::vector<std::weak_ptr<Tre_reader>> Tre_library::get_versioned_readers(const std::string & name)
+  vector<weak_ptr<Tre_reader>> Tre_library::get_versioned_readers(const string & name)
   {
-    std::vector<std::weak_ptr<Tre_reader>> result;
+    vector<weak_ptr<Tre_reader>> result;
 
     auto object = m_reader_lookup.find(name);
     if (object != m_reader_lookup.end())
@@ -84,12 +86,12 @@ namespace Tre_navigator
     return result;
   }
 
-  bool Tre_library::get_object(const std::string & name, std::vector<uint8_t>& buffer, size_t version_num)
+  bool Tre_library::get_object(const string& name, vector<uint8_t>& buffer, size_t version_num, bool search)
   {
-    std::string fullname;
+    string fullname;
     if (!is_object_present(name))
     {
-      if (!get_object_name(name, fullname))
+      if (!search || !get_object_name(name, fullname))
         return false;
     }
     else
@@ -104,5 +106,23 @@ namespace Tre_navigator
       return reader_lock->get_resource(fullname, buffer);
 
     return false;
+  }
+
+  bool Tre_library::select_objects_by_ext(const string & ext, vector<string>& result)
+  {
+    if (ext.length() != 3)
+      return false;
+
+    for (auto& object : m_reader_lookup)
+    {
+      auto object_name = object.first;
+      auto obj_ext = object_name.substr(object_name.length() - 3);
+      if (obj_ext == ext)
+        result.push_back(object_name);
+    }
+
+    sort(result.begin(), result.end());
+    result.erase(unique(result.begin(), result.end()), result.end());
+    return result.empty() == false;
   }
 }

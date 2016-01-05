@@ -47,7 +47,7 @@ int _tmain(int argc, _TCHAR* argv[])
   flags.add_options()
     ("help", "get this help message")
     ("swg-path", po::value<string>(&swg_path)->required(), "path to Star Wars Galaxies")
-    ("object", po::value<string>(&object_name)->required(), "name of object to extract")
+    ("object", po::value<string>(&object_name)->required(), "name of object to extract. use batch:<ext> to extract all files of given ext")
     ("output-path", po::value<string>(&output_pathname)->required(), "path to output location");
 
   try
@@ -76,16 +76,47 @@ int _tmain(int argc, _TCHAR* argv[])
   queue<string> objects_to_process;
   set<string> unknown_objects;
 
-  if (library->is_object_present(object_name))
+  // check if we in batch mode by given object name special look
+  boost::char_separator<char> separators(":");
+  boost::tokenizer<boost::char_separator<char>> object_name_tokens(object_name, separators);
+  vector<string> tokens(object_name_tokens.begin(), object_name_tokens.end());
+  if (tokens.size() > 1)
   {
-    objects_to_process.push(object_name);
-  }
-  else if (library->get_object_name(object_name, full_name))
-  {
-    objects_to_process.push(full_name);
+    if (tokens[0] != "batch")
+    {
+      cout << "Incorrect format for batch mode" << endl;
+      return 0;
+    }
+
+    auto filetype = tokens[1];
+
+    vector<string> selected_objects;
+    if (library->select_objects_by_ext(filetype, selected_objects))
+    {
+      for (const auto& obj_name : selected_objects)
+        objects_to_process.push(obj_name);
+    }
+    else
+    {
+      cout << "no object selected for batch - extension is wrong?";
+      return 0;
+    }
   }
   else
-    std::cout << "Object with name \"" << object_name << "\" has not been found" << std::endl;
+  {
+    // normalize filename
+    replace_if(object_name.begin(), object_name.end(), [](const char& value) { return value == '\\'; }, '/');
+    if (library->is_object_present(object_name))
+    {
+      objects_to_process.push(object_name);
+    }
+    else if (library->get_object_name(object_name, full_name))
+    {
+      objects_to_process.push(full_name);
+    }
+    else
+      std::cout << "Object with name \"" << object_name << "\" has not been found" << std::endl;
+  }
 
   Context context;
 
@@ -102,6 +133,7 @@ int _tmain(int argc, _TCHAR* argv[])
     if (context.object_list.find(full_name) != context.object_list.end())
       continue;
 
+    cout << "Processing : " << full_name << endl;
     std::vector<uint8_t> buffer;
     if (!library->get_object(full_name, buffer))
       continue;

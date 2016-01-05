@@ -72,6 +72,11 @@ void Animated_mesh::store(const std::string& path)
   target_path /= obj_name.filename();
   target_path.replace_extension("fbx");
 
+  // check directory existance
+  auto directory = target_path.parent_path();
+  if (!boost::filesystem::exists(directory))
+    boost::filesystem::create_directories(directory);
+
   if (fs::exists(target_path))
     fs::remove(target_path);
 
@@ -142,44 +147,49 @@ void Animated_mesh::store(const std::string& path)
   for (uint32_t shader_idx = 0; shader_idx < m_shaders.size(); ++shader_idx)
   {
     auto& shader = m_shaders[shader_idx];
-    auto& material = shader.get_definition()->material();
-    auto& textures = shader.get_definition()->textures();
-
-    // create material for this shader
     auto material_ptr = FbxSurfacePhong::Create(scene_ptr, shader.get_name().c_str());
     material_ptr->ShadingModel.Set("Phong");
-    material_ptr->Ambient.Set(FbxDouble3(material.ambient.r, material.ambient.g, material.ambient.g));
-    material_ptr->Diffuse.Set(FbxDouble3(material.diffuse.r, material.diffuse.g, material.diffuse.g));
-    material_ptr->Emissive.Set(FbxDouble3(material.emissive.r, material.emissive.g, material.emissive.g));
-    material_ptr->Specular.Set(FbxDouble3(material.specular.r, material.specular.g, material.specular.g));
 
-    // add texture definitions
-    for (auto& texture_def : textures)
+    if (shader.get_definition())
     {
-      FbxFileTexture* texture = FbxFileTexture::Create(scene_ptr, texture_def.tex_file_name.c_str());
-      boost::filesystem::path tex_path(path);
-      tex_path /= texture_def.tex_file_name;
-      tex_path.replace_extension("tga");
+      auto& material = shader.get_definition()->material();
+      auto& textures = shader.get_definition()->textures();
 
-      texture->SetFileName(tex_path.string().c_str());
-      texture->SetTextureUse(FbxTexture::eStandard);
-      texture->SetMaterialUse(FbxFileTexture::eModelMaterial);
-      texture->SetMappingType(FbxTexture::eUV);
-      texture->SetWrapMode(FbxTexture::eRepeat, FbxTexture::eRepeat);
-      texture->SetTranslation(0.0, 0.0);
-      texture->SetScale(1.0, 1.0);
-      texture->SetTranslation(0.0, 0.0);
-      switch (texture_def.texture_type)
+      // create material for this shader
+
+      material_ptr->Ambient.Set(FbxDouble3(material.ambient.r, material.ambient.g, material.ambient.g));
+      material_ptr->Diffuse.Set(FbxDouble3(material.diffuse.r, material.diffuse.g, material.diffuse.g));
+      material_ptr->Emissive.Set(FbxDouble3(material.emissive.r, material.emissive.g, material.emissive.g));
+      material_ptr->Specular.Set(FbxDouble3(material.specular.r, material.specular.g, material.specular.g));
+
+      // add texture definitions
+      for (auto& texture_def : textures)
       {
-      case Shader::texture_type::main:
-        material_ptr->Diffuse.ConnectSrcObject(texture);
-        break;
-      case Shader::texture_type::normal:
-        material_ptr->Bump.ConnectSrcObject(texture);
-        break;
-      case Shader::texture_type::specular:
-        material_ptr->Specular.ConnectSrcObject(texture);
-        break;
+        FbxFileTexture* texture = FbxFileTexture::Create(scene_ptr, texture_def.tex_file_name.c_str());
+        boost::filesystem::path tex_path(path);
+        tex_path /= texture_def.tex_file_name;
+        tex_path.replace_extension("tga");
+
+        texture->SetFileName(tex_path.string().c_str());
+        texture->SetTextureUse(FbxTexture::eStandard);
+        texture->SetMaterialUse(FbxFileTexture::eModelMaterial);
+        texture->SetMappingType(FbxTexture::eUV);
+        texture->SetWrapMode(FbxTexture::eRepeat, FbxTexture::eRepeat);
+        texture->SetTranslation(0.0, 0.0);
+        texture->SetScale(1.0, 1.0);
+        texture->SetTranslation(0.0, 0.0);
+        switch (texture_def.texture_type)
+        {
+        case Shader::texture_type::main:
+          material_ptr->Diffuse.ConnectSrcObject(texture);
+          break;
+        case Shader::texture_type::normal:
+          material_ptr->Bump.ConnectSrcObject(texture);
+          break;
+        case Shader::texture_type::specular:
+          material_ptr->Specular.ConnectSrcObject(texture);
+          break;
+        }
       }
     }
 
@@ -406,48 +416,53 @@ void Animated_mesh::resolve_dependencies(const Context& context)
       it_shad->set_definition(dynamic_pointer_cast<Shader>(obj_it->second));
   }
 
+  // get object description first
+  // NOTE there is a error in MGN can be encountered because wrong skt name given in skeleton sections
+  auto mesh_description = dynamic_pointer_cast<Animated_object_descriptor>(context.object_list.find(opened_by_name)->second);
+
   // get skeletons
-  for (auto it_skel = m_skeletons_names.begin(); it_skel != m_skeletons_names.end(); ++it_skel)
+  size_t skel_idx = 0;
+  for (auto it_skel = m_skeletons_names.begin(); it_skel != m_skeletons_names.end(); ++it_skel, ++skel_idx)
   {
-    auto obj_it = context.object_list.find(*it_skel);
+    auto skel_name = *it_skel;
+    // check name against name in description
+    if (mesh_description)
+    {
+      auto descr_skel_name = mesh_description->get_skeleton_name(skel_idx);
+      if (!boost::iequals(skel_name, descr_skel_name))
+        skel_name = descr_skel_name;
+    }
+    auto obj_it = context.object_list.find(skel_name);
     if (obj_it != context.object_list.end() && dynamic_pointer_cast<Skeleton>(obj_it->second))
-      m_used_skeletons.emplace_back(*it_skel, dynamic_pointer_cast<Skeleton>(obj_it->second));
+      m_used_skeletons.emplace_back(skel_name, dynamic_pointer_cast<Skeleton>(obj_it->second)->clone());
   }
 
-  if (!opened_by_name.empty() && m_used_skeletons.size() > 1)
+  if (!opened_by_name.empty() && m_used_skeletons.size() > 1 && mesh_description)
   {
     // check if we opened through SAT and have multiple skeleton definitions
     //  then we have unite them to one, so we need SAT to get join information from it's skeleton info;
-    auto it = context.object_list.find(opened_by_name);
-    if (it != context.object_list.end())
+    auto skel_count = mesh_description->get_skeletons_count();
+    shared_ptr<Skeleton> root_skeleton;
+    for (uint32_t skel_idx = 0; skel_idx < skel_count; ++skel_idx)
     {
-      auto cat_obj = std::dynamic_pointer_cast<Animated_object_descriptor>(it->second);
-      if (cat_obj)
+      auto skel_name = mesh_description->get_skeleton_name(skel_idx);
+      auto point_name = mesh_description->get_skeleton_attach_point(skel_idx);
+
+      auto this_it = std::find_if(m_used_skeletons.begin(), m_used_skeletons.end(),
+        [&skel_name](const pair<string, shared_ptr<Skeleton>>& info)
       {
-        auto skel_count = cat_obj->get_skeletons_count();
-        shared_ptr<Skeleton> root_skeleton;
-        for (uint32_t skel_idx = 0; skel_idx < skel_count; ++skel_idx)
-        {
-          auto skel_name = cat_obj->get_skeleton_name(skel_idx);
-          auto point_name = cat_obj->get_skeleton_attach_point(skel_idx);
+        return (boost::iequals(skel_name, info.first));
+      });
 
-          auto it = std::find_if(m_used_skeletons.begin(), m_used_skeletons.end(),
-            [&skel_name](const pair<string, shared_ptr<Skeleton>>& info)
-          {
-            return (boost::iequals(skel_name, info.first));
-          });
-
-          if (point_name.empty() && it != m_used_skeletons.end())
-            // mark this skeleton as root
-            root_skeleton = it->second;
-          else
-          {
-            // attach skeleton to root
-            root_skeleton->join_skeleton_to_point(point_name, it->second);
-            // remove it from used list
-            m_used_skeletons.erase(it);
-          }
-        }
+      if (point_name.empty() && this_it != m_used_skeletons.end())
+        // mark this skeleton as root
+        root_skeleton = this_it->second;
+      else if (this_it != m_used_skeletons.end())
+      {
+        // attach skeleton to root
+        root_skeleton->join_skeleton_to_point(point_name, this_it->second);
+        // remove it from used list
+        m_used_skeletons.erase(this_it);
       }
     }
   }
@@ -465,6 +480,12 @@ void Animated_mesh::Shader_appliance::add_primitive()
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+shared_ptr<Skeleton> Skeleton::clone()
+{
+  return make_shared<Skeleton>(*this);
+}
+
 void Skeleton::generate_skeleton_in_scene(FbxScene* scene_ptr, FbxNode * parent_ptr, Animated_mesh* source_mesh)
 {
   assert(parent_ptr != nullptr && scene_ptr != nullptr);
