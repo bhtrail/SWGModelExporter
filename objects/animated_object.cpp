@@ -64,7 +64,7 @@ bool Animated_mesh::is_object_correct() const
     && !m_shaders.empty();
 }
 
-void Animated_mesh::store(const std::string& path)
+void Animated_mesh::store(const std::string& path, const Context& context)
 {
   // extract object name and make full path name
   fs::path obj_name(m_object_name);
@@ -124,6 +124,7 @@ void Animated_mesh::store(const std::string& path)
 
   // prepare vertices
   uint32_t vertices_num = static_cast<uint32_t>(m_vertices.size());
+  uint32_t normals_num = static_cast<uint32_t>(m_normals.size());
   mesh_ptr->SetControlPointCount(vertices_num);
   auto mesh_vertices = mesh_ptr->GetControlPoints();
 
@@ -147,16 +148,15 @@ void Animated_mesh::store(const std::string& path)
   for (uint32_t shader_idx = 0; shader_idx < m_shaders.size(); ++shader_idx)
   {
     auto& shader = m_shaders[shader_idx];
-    auto material_ptr = FbxSurfacePhong::Create(scene_ptr, shader.get_name().c_str());
-    material_ptr->ShadingModel.Set("Phong");
-
     if (shader.get_definition())
     {
+      auto material_ptr = FbxSurfacePhong::Create(scene_ptr, shader.get_name().c_str());
+      material_ptr->ShadingModel.Set("Phong");
+
       auto& material = shader.get_definition()->material();
       auto& textures = shader.get_definition()->textures();
 
       // create material for this shader
-
       material_ptr->Ambient.Set(FbxDouble3(material.ambient.r, material.ambient.g, material.ambient.g));
       material_ptr->Diffuse.Set(FbxDouble3(material.diffuse.r, material.diffuse.g, material.diffuse.g));
       material_ptr->Emissive.Set(FbxDouble3(material.emissive.r, material.emissive.g, material.emissive.g));
@@ -191,42 +191,42 @@ void Animated_mesh::store(const std::string& path)
           break;
         }
       }
-    }
 
-    mesh_ptr->GetNode()->AddMaterial(material_ptr);
+      mesh_ptr->GetNode()->AddMaterial(material_ptr);
 
-    // get geometry element
-    auto& triangles = shader.get_triangles();
-    auto& positions = shader.get_pos_indexes();
-    auto& normals = shader.get_normal_indexes();
-    auto& tangents = shader.get_light_indexes();
+      // get geometry element
+      auto& triangles = shader.get_triangles();
+      auto& positions = shader.get_pos_indexes();
+      auto& normals = shader.get_normal_indexes();
+      auto& tangents = shader.get_light_indexes();
 
-    auto idx_offset = static_cast<uint32_t>(uvs.size());
-    copy(shader.get_texels().begin(), shader.get_texels().end(), back_inserter(uvs));
+      auto idx_offset = static_cast<uint32_t>(uvs.size());
+      copy(shader.get_texels().begin(), shader.get_texels().end(), back_inserter(uvs));
 
-    normal_indexes.reserve(normal_indexes.size() + normals.size());
-    tangents_idxs.reserve(tangents_idxs.size() + tangents.size());
+      normal_indexes.reserve(normal_indexes.size() + normals.size());
+      tangents_idxs.reserve(tangents_idxs.size() + tangents.size());
 
-    for (uint32_t tri_idx = 0; tri_idx < triangles.size(); ++tri_idx)
-    {
-      auto& tri = triangles[tri_idx];
-      mesh_ptr->BeginPolygon(shader_idx, -1, shader_idx, false);
-      for (size_t i = 0; i < 3; ++i)
+      for (uint32_t tri_idx = 0; tri_idx < triangles.size(); ++tri_idx)
       {
-        auto remapped_pos_idx = positions[tri.points[i]];
-        mesh_ptr->AddPolygon(remapped_pos_idx);
-
-        auto remapped_normal_idx = normals[tri.points[i]];
-        normal_indexes.emplace_back(remapped_normal_idx);
-
-        if (!tangents.empty())
+        auto& tri = triangles[tri_idx];
+        mesh_ptr->BeginPolygon(shader_idx, -1, shader_idx, false);
+        for (size_t i = 0; i < 3; ++i)
         {
-          auto remapped_tangent = tangents[tri.points[i]];
-          tangents.emplace_back(remapped_tangent);
+          auto remapped_pos_idx = positions[tri.points[i]];
+          mesh_ptr->AddPolygon(remapped_pos_idx);
+
+          auto remapped_normal_idx = normals[tri.points[i]];
+          normal_indexes.emplace_back(remapped_normal_idx);
+
+          if (!tangents.empty())
+          {
+            auto remapped_tangent = tangents[tri.points[i]];
+            tangents.emplace_back(remapped_tangent);
+          }
+          uv_indexes.emplace_back(idx_offset + tri.points[i]);
         }
-        uv_indexes.emplace_back(idx_offset + tri.points[i]);
+        mesh_ptr->EndPolygon();
       }
-      mesh_ptr->EndPolygon();
     }
   }
   // add UVs
@@ -317,11 +317,13 @@ void Animated_mesh::store(const std::string& path)
     {
       size_t idx = morph_pt.first;
       auto& offset = morph_pt.second;
+      if (idx >= total_vertices)
+        continue;
       auto& pos = m_vertices[idx].get_position();
       shape_vertices[idx].Set(pos.x + offset.x, pos.y + offset.y, pos.z + offset.z);
     }
 
-    if (!normal_indexes.empty())
+    if (!normal_indexes.empty() && !context.batch_mode)
     {
       // get normals
       auto normal_element = shape->CreateElementNormal();
@@ -349,7 +351,7 @@ void Animated_mesh::store(const std::string& path)
         [&index_array](const uint32_t& idx) { index_array.Add(idx); });
     }
 
-    if (!tangents_idxs.empty())
+    if (!tangents_idxs.empty() && !context.batch_mode)
     {
       // get tangents
       auto tangents_ptr = shape->CreateElementTangent();
@@ -376,8 +378,8 @@ void Animated_mesh::store(const std::string& path)
         [&index_array](const uint32_t& idx) { index_array.Add(idx); });
     }
 
-    morph_channel->AddTargetShape(shape);
-    blend_shape_ptr->AddBlendShapeChannel(morph_channel);
+    auto success = morph_channel->AddTargetShape(shape);
+    success = blend_shape_ptr->AddBlendShapeChannel(morph_channel);
   }
   mesh_node_ptr->GetGeometry()->AddDeformer(blend_shape_ptr);
 
@@ -414,6 +416,41 @@ void Animated_mesh::resolve_dependencies(const Context& context)
     auto obj_it = context.object_list.find(it_shad->get_name());
     if (obj_it != context.object_list.end() && dynamic_pointer_cast<Shader>(obj_it->second))
       it_shad->set_definition(dynamic_pointer_cast<Shader>(obj_it->second));
+  }
+
+  auto bad_shaders = any_of(m_shaders.begin(), m_shaders.end(),
+    [](const Shader_appliance& shader) { return shader.get_definition() == nullptr; });
+
+  if (bad_shaders)
+  {
+    vector<uint8_t> counters(m_vertices.size(), 0);
+    for (auto& shader : m_shaders)
+    {
+      for (auto& vert_idx : shader.get_pos_indexes())
+        counters[vert_idx]++;
+
+      if (shader.get_definition() == nullptr)
+        for (auto& vert_idx : shader.get_pos_indexes())
+          counters[vert_idx]--;
+    }
+
+    auto safe_clear = is_partitioned(counters.begin(), counters.end(),
+      [](uint8_t val) { return val > 0; });
+    if (safe_clear)
+    {
+      // we can do safe clear of trouble shader, if not - oops
+      auto beg = find_if(counters.begin(), counters.end(),
+        [](uint8_t val) { return val == 0; });
+      auto idx = distance(counters.begin(), beg);
+      m_vertices.erase(m_vertices.begin() + idx, m_vertices.end());
+
+      for (size_t idx = 0; idx < m_shaders.size(); ++idx)
+        if (m_shaders[idx].get_definition() == nullptr)
+        {
+          m_shaders.erase(m_shaders.begin() + idx);
+          break;
+        }
+    }
   }
 
   // get object description first
@@ -638,10 +675,6 @@ bool Skeleton::is_object_correct() const
   return !m_bones.empty();
 }
 
-void Skeleton::store(const std::string & path)
-{
-}
-
 set<string> Skeleton::get_referenced_objects() const
 {
   return set<string>();
@@ -705,7 +738,7 @@ shared_ptr<DDS_Texture> DDS_Texture::construct(const string& name, const uint8_t
   return nullptr;
 }
 
-void DDS_Texture::store(const string& path)
+void DDS_Texture::store(const string& path, const Context& context)
 {
   boost::filesystem::path out_path(path);
 

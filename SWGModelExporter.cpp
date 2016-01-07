@@ -74,7 +74,8 @@ int _tmain(int argc, _TCHAR* argv[])
   std::cout << "Looking for object" << endl;
 
   queue<string> objects_to_process;
-  set<string> unknown_objects;
+
+  Context context;
 
   // check if we in batch mode by given object name special look
   boost::char_separator<char> separators(":");
@@ -93,6 +94,7 @@ int _tmain(int argc, _TCHAR* argv[])
     vector<string> selected_objects;
     if (library->select_objects_by_ext(filetype, selected_objects))
     {
+      context.batch_mode = true;
       for (const auto& obj_name : selected_objects)
         objects_to_process.push(obj_name);
     }
@@ -118,13 +120,12 @@ int _tmain(int argc, _TCHAR* argv[])
       std::cout << "Object with name \"" << object_name << "\" has not been found" << std::endl;
   }
 
-  Context context;
-
   while (objects_to_process.empty() == false)
   {
     full_name = objects_to_process.front();
     objects_to_process.pop();
 
+    // normalize path
     replace_if(full_name.begin(), full_name.end(), [](const char& value) { return value == '\\'; }, '/');
     string ext = full_name.substr(full_name.length() - 3);
     boost::to_lower(ext);
@@ -135,6 +136,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
     cout << "Processing : " << full_name << endl;
     std::vector<uint8_t> buffer;
+    // do not try find object on this step
     if (!library->get_object(full_name, buffer))
       continue;
 
@@ -192,10 +194,10 @@ int _tmain(int argc, _TCHAR* argv[])
 
   std::cout << "Store objects..." << endl;
   for_each(context.object_list.begin(), context.object_list.end(),
-    [&output_pathname](const pair<string, shared_ptr<Base_object>>& item)
+    [&output_pathname, &context](const pair<string, shared_ptr<Base_object>>& item)
   {
     std::cout << "Object : " << item.first;
-    item.second->store(output_pathname);
+    item.second->store(output_pathname, context);
     std::cout << " done." << endl;
   });
 

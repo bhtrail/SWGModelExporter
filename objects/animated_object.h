@@ -37,7 +37,7 @@ public:
   }
 
   virtual bool is_object_correct() const override { return true; }
-  virtual void store(const std::string& path) override { };
+  virtual void store(const std::string& path, const Context& context) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
   virtual void resolve_dependencies(const Context&) override { }
   virtual void set_object_name(const std::string& name) override { m_name = name;  }
@@ -59,7 +59,7 @@ public:
   void add_lod_name(const std::string& name) { m_lod_names.emplace_back(name); }
   // overrides
   virtual bool is_object_correct() const override { return true; }
-  virtual void store(const std::string& path) override { };
+  virtual void store(const std::string& path, const Context& context) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
   virtual void resolve_dependencies(const Context&) override { }
   virtual void set_object_name(const std::string& name) override { m_name = name; }
@@ -76,7 +76,7 @@ public:
 
   // Inherited via Base_object
   virtual bool is_object_correct() const override { return (m_name.empty() == false && m_image); }
-  virtual void store(const std::string & path) override;
+  virtual void store(const std::string & path, const Context& context) override;
   virtual std::set<std::string> get_referenced_objects() const override { return std::set<std::string>(); }
   virtual void resolve_dependencies(const Context & context) override { }
   virtual void set_object_name(const std::string & obj_name) override { m_name = obj_name; }
@@ -165,7 +165,7 @@ public:
   static texture_type get_texture_type(const std::string& texture_tag);
 
   virtual bool is_object_correct() const override { return true; }
-  virtual void store(const std::string&) override { }
+  virtual void store(const std::string&, const Context& context) override { }
   virtual std::set<std::string> get_referenced_objects() const override;
   virtual void resolve_dependencies(const Context&) override { }
   virtual void set_object_name(const std::string& name) override { m_name = name; }
@@ -222,7 +222,7 @@ public:
 
   // Inherited via Base_object
   virtual bool is_object_correct() const override;
-  virtual void store(const std::string & path) override;
+  virtual void store(const std::string & path, const Context& context) override { };
   virtual std::set<std::string> get_referenced_objects() const override;
   virtual void resolve_dependencies(const Context& context) override;
   virtual void set_object_name(const std::string & obj_name) override;
@@ -279,7 +279,7 @@ public:
     std::vector<Graphics::Triangle_indexed>& get_triangles() { return m_triangles; }
     std::vector<std::pair<uint32_t, uint32_t>>& get_primivites() { return m_primitives; }
     void set_definition(const std::shared_ptr<Shader>& shader_def) { m_shader_definition = shader_def; }
-    const std::shared_ptr<Shader>& get_definition() { return m_shader_definition; }
+    const std::shared_ptr<Shader>& get_definition() const { return m_shader_definition; }
 
     void add_primitive();
     void close_primitive() { m_primitives.back().second = static_cast<uint32_t>(m_primitives.size()); }
@@ -336,7 +336,7 @@ public:
 
   // Inherited via Base_object
   virtual bool is_object_correct() const override;
-  virtual void store(const std::string & path) override;
+  virtual void store(const std::string & path, const Context& context) override;
   virtual std::set<std::string> get_referenced_objects() const override;
   virtual void resolve_dependencies(const Context& context) override;
   virtual void set_object_name(const std::string& obj_name) override { m_object_name = obj_name; }
