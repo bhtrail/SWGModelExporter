@@ -8,9 +8,6 @@
 #include "parsers/parser_selector.h"
 #include "objects/animated_object.h"
 
-//////
-#include "objects/static_object.h"
-
 using namespace std;
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
