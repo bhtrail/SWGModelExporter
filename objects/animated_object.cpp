@@ -763,3 +763,31 @@ void DDS_Texture::store(const string& path, const Context& context)
 
   DirectX::SaveToTGAFile(*out_image, out_path.wstring().c_str());
 }
+
+bool Animation::is_object_correct() const
+{
+  return false;
+}
+
+void Animation::store(const std::string & path, const Context & context)
+{
+}
+
+std::set<std::string> Animation::get_referenced_objects() const
+{
+  return std::set<std::string>();
+}
+
+void Animation::resolve_dependencies(const Context & context)
+{
+}
+
+void Animation::set_object_name(const std::string & obj_name)
+{
+  m_object_name = obj_name;
+}
+
+std::string Animation::get_object_name() const
+{
+  return m_object_name;
+}

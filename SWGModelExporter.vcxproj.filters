@@ -75,6 +75,9 @@
     <ClInclude Include="parsers\sht_parser.h">
       <Filter>Source Files\parsers</Filter>
     </ClInclude>
+    <ClInclude Include="parsers\anim_parser.h">
+      <Filter>Source Files\parsers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -114,6 +117,12 @@
       <Filter>Source Files\parsers</Filter>
     </ClCompile>
     <ClCompile Include="parsers\sht_parser.cpp">
+      <Filter>Source Files\parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="objects\static_object.cpp">
+      <Filter>Source Files\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="parsers\anim_parser.cpp">
       <Filter>Source Files\parsers</Filter>
     </ClCompile>
   </ItemGroup>

@@ -190,3 +190,4 @@ _Pvt_Extensions/
 ModelManifest.xml
 deploy/
 *.opendb
+SWGModelExporter.VC.db

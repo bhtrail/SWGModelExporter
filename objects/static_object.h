@@ -1,6 +1,7 @@
 #pragma once
 
 #include "geometry_common.h"
+#include "objects/base_object.h"
 //
 // Static object
 //

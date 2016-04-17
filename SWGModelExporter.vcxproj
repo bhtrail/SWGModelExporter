@@ -169,6 +169,7 @@
     <ClInclude Include="objects\base_object.h" />
     <ClInclude Include="objects\geometry_common.h" />
     <ClInclude Include="objects\static_object.h" />
+    <ClInclude Include="parsers\anim_parser.h" />
     <ClInclude Include="parsers\cat_parser.h" />
     <ClInclude Include="parsers\lmg_parser.h" />
     <ClInclude Include="parsers\mgn_parser.h" />
@@ -185,6 +186,8 @@
     <ClCompile Include="base_buffer.cpp" />
     <ClCompile Include="IFF_file.cpp" />
     <ClCompile Include="objects\animated_object.cpp" />
+    <ClCompile Include="objects\static_object.cpp" />
+    <ClCompile Include="parsers\anim_parser.cpp" />
     <ClCompile Include="parsers\cat_parser.cpp" />
     <ClCompile Include="parsers\lmg_parser.cpp" />
     <ClCompile Include="parsers\mgn_parser.cpp" />

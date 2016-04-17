@@ -234,6 +234,53 @@ private:
   uint32_t m_current_lod;
 };
 
+class Animation : public Base_object
+{
+public:
+#pragma pack(push, 1)
+  struct Info
+  {
+    float FPS;
+    uint16_t frame_count;
+    uint16_t transform_count;
+    uint16_t rotation_channel_count;
+    uint16_t static_rotation_count;
+    uint16_t translation_channel_count;
+    uint16_t static_translation_count;
+  };
+
+  struct Bone_info
+  {
+    std::string name;
+    bool has_rotations;
+    uint16_t rotation_channel_id;
+    uint8_t translation_mask;
+    uint16_t x_translation_channel_id;
+    uint16_t y_translation_channel_id;
+    uint16_t z_translation_channel_id;
+  };
+#pragma pack(pop)
+  Animation() { };
+
+  // Inherited via Base_object
+  virtual bool is_object_correct() const override;
+  virtual void store(const std::string & path, const Context & context) override;
+  virtual std::set<std::string> get_referenced_objects() const override;
+  virtual void resolve_dependencies(const Context & context) override;
+  virtual void set_object_name(const std::string & obj_name) override;
+  virtual std::string get_object_name() const override;
+
+  // getters/setters
+  void set_info(const Info& info) { m_info = info; }
+  const Info& get_info() const { return m_info; }
+  std::vector<Bone_info>& get_bones() { return m_animated_bones; }
+
+private:
+  std::string m_object_name;
+  Info m_info;
+  std::vector<Bone_info> m_animated_bones;
+};
+
 class Animated_mesh : public Base_object
 {
 public:

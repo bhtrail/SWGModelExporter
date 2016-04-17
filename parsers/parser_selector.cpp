@@ -5,6 +5,7 @@
 #include "mgn_parser.h"
 #include "skt_parser.h"
 #include "sht_parser.h"
+#include "anim_parser.h"
 
 using namespace std;
 
@@ -26,6 +27,8 @@ void Parser_selector::section_begin(const string& name, uint8_t * data_ptr, size
       m_selected_parser = make_shared<skt_parser>();
     else if (name == "CSHDFORM" || name == "SSHTFORM")
       m_selected_parser = make_shared<sht_parser>();
+    else if (name == "CKATFORM")
+      m_selected_parser = make_shared<anim_parser>();
     else
       m_selected_parser = nullptr;
   }
